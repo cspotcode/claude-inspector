@@ -59,9 +59,9 @@ Claude Code CLI 트래픽을 실시간으로 가로채<br>
 
 사용하지 않는 MCP 도구는 토큰을 소비하지 않습니다. Inspector로 모델이 필요한 도구를 발견할 때 `tools[]`가 늘어나는 것을 확인할 수 있습니다.
 
-### 3. 이미지는 base64로 인라인 인코딩된다 — multipart가 아님
+### 3. 이미지는 base64로 인라인 인코딩된다
 
-Claude Code가 스크린샷이나 이미지 파일을 읽을 때, multipart form data를 사용하지 않습니다. 이미지는 **base64로 인코딩되어 JSON 본문에 직접 포함**됩니다:
+Claude Code가 스크린샷이나 이미지 파일을 읽을 때, 이미지는 **base64로 인코딩되어 JSON 본문에 직접 포함**됩니다:
 
 ```json
 {

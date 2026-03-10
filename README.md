@@ -59,9 +59,9 @@ Built-in tools (27) ship their full JSON schemas every request. MCP tools don't 
 
 Unused MCP tools never consume tokens. The Inspector lets you watch `tools[]` grow as the model discovers what it needs.
 
-### 3. Images are base64-encoded inline — not multipart
+### 3. Images are base64-encoded inline
 
-When Claude Code reads a screenshot or image file, it doesn't use multipart form data. The image is **base64-encoded and embedded directly** in the JSON body:
+When Claude Code reads a screenshot or image file, the image is **base64-encoded and embedded directly** in the JSON body:
 
 ```json
 {
