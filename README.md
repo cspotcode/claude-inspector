@@ -111,7 +111,13 @@ Claude Code re-sends the **entire** `messages[]` array with every request:
 | 10 | ~200KB |
 | 30 | ~1MB+ |
 
-Most of it is old conversation you no longer need. Running `/clear` resets the context and drops the accumulated weight. Clear early, clear often.
+Most of it is old conversation you no longer need. As it grows:
+
+- **Cost increases** — more input tokens per request means higher API bills
+- **Context window fills up** — once the limit is hit, older messages get auto-compressed and detail is lost
+- **Responses slow down** — larger payloads take longer to process
+
+Running `/clear` resets the context and drops the accumulated weight. Clear early, clear often.
 
 ### 6. Sub-agents run in fully isolated contexts
 
