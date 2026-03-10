@@ -105,11 +105,11 @@ Claude Code re-sends the **entire** `messages[]` array with every request:
 }
 ```
 
-| Turns | Approx. payload size |
+| Turns | Approx. cumulative transfer |
 |-------|---------------------|
 | 1 | ~15KB |
-| 10 | ~150KB |
-| 30 | ~400KB+ |
+| 10 | ~200KB |
+| 30 | ~1MB+ |
 
 Most of it is old conversation you no longer need. Running `/clear` resets the context and drops the accumulated weight. Clear early, clear often.
 
