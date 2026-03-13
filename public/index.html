@@ -671,7 +671,36 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      position: relative;
     }
+    .proxy-token-pill[data-cost] { cursor: pointer; }
+    .proxy-token-pill[data-cost]:hover .tt-badge { background: rgba(255,255,255,0.12); }
+    .token-popover {
+      position: absolute; top: 100%; left: 12px; z-index: 1000;
+      background: var(--bg-lighter, #2a2a2a); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px; min-width: 320px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      font-family: 'SF Mono', monospace; font-size: 11px;
+      color: var(--text); line-height: 1.6;
+      animation: popFadeIn 0.15s ease-out;
+    }
+    @keyframes popFadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    .token-popover-title {
+      font-size: 12px; font-weight: 600; color: var(--blue, #7aa2f7);
+      margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .token-popover-copy {
+      font-size: 10px; color: var(--dim); cursor: pointer;
+      padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.06);
+    }
+    .token-popover-copy:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+    .token-popover-row { display: flex; justify-content: space-between; padding: 2px 0; gap: 12px; }
+    .token-popover-row.tp-total {
+      border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; font-weight: 600;
+    }
+    .tp-label { color: var(--dim); white-space: nowrap; }
+    .tp-formula { color: var(--text); opacity: 0.7; text-align: center; flex: 1; }
+    .tp-result { color: var(--yellow, #e0af68); font-weight: 600; text-align: right; white-space: nowrap; }
     .tt-badge {
       background: rgba(255,255,255,0.06);
       padding: 2px 8px;
@@ -3043,23 +3072,23 @@ function renderProxyDetail() {
           const cost = (uncached * inP + cacheRead * crP + cacheWrite * cwP + outTok * outP) / 1_000_000;
           const costStr = cost >= 1 ? '$' + cost.toFixed(2) : cost >= 0.01 ? '$' + cost.toFixed(3) : '$' + cost.toFixed(4);
           const fmtCost = (n) => '$' + (n / 1_000_000).toFixed(4);
-          const tooltip = [
-            `[비용 계산] 모델: ${model || '불명'}`,
-            ``,
-            `캐시읽기: ${fmtTok(cacheRead)} tok × $${crP}/MTok = ${fmtCost(cacheRead * crP)}`,
-            `캐시쓰기: ${fmtTok(cacheWrite)} tok × $${cwP}/MTok = ${fmtCost(cacheWrite * cwP)}`,
-            `미캐시 입력: ${fmtTok(uncached)} tok × $${inP}/MTok = ${fmtCost(uncached * inP)}`,
-            `출력: ${fmtTok(outTok)} tok × $${outP}/MTok = ${fmtCost(outTok * outP)}`,
-            ``,
-            `합계: ${costStr}`,
-            `캐시 적중률: ${cachePct}%`
-          ].join('\n');
+          const popData = JSON.stringify({
+            model: model || '불명',
+            rows: [
+              { label: '캐시읽기', tokens: fmtTok(cacheRead), price: crP, cost: fmtCost(cacheRead * crP) },
+              { label: '캐시쓰기', tokens: fmtTok(cacheWrite), price: cwP, cost: fmtCost(cacheWrite * cwP) },
+              { label: '미캐시 입력', tokens: fmtTok(uncached), price: inP, cost: fmtCost(uncached * inP) },
+              { label: '출력', tokens: fmtTok(outTok), price: outP, cost: fmtCost(outTok * outP) },
+            ],
+            total: costStr,
+            cachePct
+          });
           let parts = `<span class="tt-badge">${kb} KB</span>`;
           parts += `<span class="tt-badge">입력 ${fmtTok(totalIn)}</span>`;
           parts += `<span class="tt-badge">출력 ${fmtTok(outTok)}</span>`;
           if (cachePct > 0) parts += `<span class="tt-badge" style="color:var(--green)">캐시 ${cachePct}%</span>`;
           parts += `<span class="tt-badge" style="color:var(--yellow)">${costStr}</span>`;
-          return `<div class="proxy-token-pill" title="${tooltip}">${parts}</div>`;
+          return `<div class="proxy-token-pill" data-cost='${popData.replace(/'/g, "&#39;")}'>${parts}</div>`;
         }
         const tokens = Math.ceil(bytes / 3.5);
         const tokStr = fmtTok(tokens);
@@ -3320,6 +3349,41 @@ function copyProxyDetail() {
     if (btn) { const o = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = o, 1500); }
   }).catch(e => console.error('copy failed', e));
 }
+
+// ─── 토큰 팝오버 클릭 핸들러 ──────────────────────────────────────────────
+document.addEventListener('click', (e) => {
+  // 복사 버튼 처리
+  if (e.target.classList.contains('token-popover-copy')) {
+    navigator.clipboard.writeText(e.target.dataset.text);
+    e.target.textContent = '복사됨!';
+    setTimeout(() => { e.target.textContent = '복사'; }, 1500);
+    return;
+  }
+  // 팝오버 내부 클릭 → 무시
+  const existingPop = e.target.closest('.token-popover');
+  if (existingPop) return;
+  // 기존 팝오버 닫기
+  const old = document.querySelector('.token-popover');
+  if (old) old.remove();
+  // 배지 클릭 → 팝오버 열기
+  const pill = e.target.closest('.proxy-token-pill[data-cost]');
+  if (!pill) return;
+  const d = JSON.parse(pill.dataset.cost);
+  const textLines = [`모델: ${d.model}`, ''];
+  let rowsHtml = '';
+  for (const r of d.rows) {
+    rowsHtml += `<div class="token-popover-row"><span class="tp-label">${r.label}</span><span class="tp-formula">${r.tokens} tok × $${r.price}/MTok</span><span class="tp-result">${r.cost}</span></div>`;
+    textLines.push(`${r.label}: ${r.tokens} tok × $${r.price}/MTok = ${r.cost}`);
+  }
+  textLines.push('', `합계: ${d.total}`, `캐시 적중률: ${d.cachePct}%`);
+  const pop = document.createElement('div');
+  pop.className = 'token-popover';
+  pop.innerHTML = `<div class="token-popover-title"><span>비용 계산</span><span class="token-popover-copy" data-text="${textLines.join('\n').replace(/"/g, '&quot;')}">복사</span></div>`
+    + rowsHtml
+    + `<div class="token-popover-row tp-total"><span class="tp-label">합계</span><span class="tp-result">${d.total}</span></div>`
+    + `<div class="token-popover-row"><span class="tp-label">캐시 적중률</span><span class="tp-result">${d.cachePct}%</span></div>`;
+  pill.appendChild(pop);
+});
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
