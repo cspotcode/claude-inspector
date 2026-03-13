@@ -632,7 +632,7 @@
       color: var(--orange);
     }
     .jt-exp-line {
-      display: block; white-space: pre-wrap; word-break: break-word;
+      display: block; white-space: pre; overflow: hidden;
       color: var(--orange); min-height: 1.3em;
     }
     .jt-exp-line.mech-hl-text {
@@ -1763,6 +1763,12 @@ function jtStrToggle(id) {
   if (btn) btn.style.display = open ? '' : 'none';
   const parentRow = body.closest('.jt-row');
   if (parentRow) parentRow.classList.toggle('jt-no-ln', !open);
+  // 펼칠 때 긴 줄 분할 (처음 한 번만)
+  if (!open && !body.dataset.split) {
+    body.dataset.split = '1';
+    const lined = body.closest('.jt-lined');
+    if (lined) requestAnimationFrame(() => splitLongExpLines(lined, body));
+  }
 }
 
 function jtToggle(id) {
@@ -1784,6 +1790,54 @@ function renderJsonTree(container, data) {
   container.innerHTML = buildJsonHtml(obj, 0, '', totalBytes)
     + `<div class="jt-line-info">${_jtLine} lines total</div>`;
   container.classList.add('jt-lined');
+  splitLongExpLines(container);
+}
+
+function splitLongExpLines(container, targetBlock) {
+  // 문자 너비 측정
+  const measure = document.createElement('span');
+  measure.style.cssText = 'visibility:hidden;position:absolute;white-space:nowrap;font:inherit';
+  measure.textContent = 'X'.repeat(100);
+  container.appendChild(measure);
+  const charWidth = measure.offsetWidth / 100;
+  container.removeChild(measure);
+  const availWidth = container.clientWidth - 60;
+  const maxChars = Math.max(40, Math.floor(availWidth / charWidth));
+
+  const blocks = targetBlock ? [targetBlock] : container.querySelectorAll('.jt-str-expanded');
+  for (const block of blocks) {
+    const lines = Array.from(block.querySelectorAll('.jt-exp-line'));
+    if (!lines.length) continue;
+    let needsSplit = false;
+    for (const l of lines) { if (l.textContent.length > maxChars) { needsSplit = true; break; } }
+    if (!needsSplit) continue;
+
+    const baseLn = parseInt(lines[0].getAttribute('data-ln')) || 1;
+    let lineNum = baseLn;
+    const fragments = [];
+    for (const line of lines) {
+      const text = line.textContent;
+      const cls = line.classList.contains('mech-hl-text') ? 'jt-exp-line mech-hl-text' : 'jt-exp-line';
+      if (text.length <= maxChars) {
+        fragments.push({ text, ln: lineNum++, cls });
+      } else {
+        for (let i = 0; i < text.length; i += maxChars) {
+          fragments.push({ text: text.slice(i, i + maxChars), ln: lineNum++, cls });
+        }
+      }
+    }
+    // DOM 재구성
+    const toggle = block.querySelector('.jt-str-toggle');
+    block.innerHTML = '';
+    if (toggle) block.appendChild(toggle);
+    for (const f of fragments) {
+      const div = document.createElement('div');
+      div.className = f.cls;
+      div.setAttribute('data-ln', f.ln);
+      div.textContent = f.text;
+      block.appendChild(div);
+    }
+  }
 }
 
 // ─── Update preview ─────────────────────────────────────────────────────────
