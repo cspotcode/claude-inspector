@@ -1103,11 +1103,11 @@ function debouncedRenderProxyDetail() {
 }
 
 async function toggleProxy() {
+  if (!window.electronAPI) return;
   const btn = document.getElementById('proxyStartBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'; }
 
   try {
-    if (!window.electronAPI) throw new Error('electronAPI not available');
     if (proxyRunning) {
       await window.electronAPI.proxyStop();
       window.electronAPI.offProxy();

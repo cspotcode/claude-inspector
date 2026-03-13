@@ -142,10 +142,9 @@ for (const dtab of ['messages', 'request', 'response', 'analysis']) {
 test('모든 offProxy 호출이 안전하게 보호됨 (guard 또는 optional chaining)', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
 
-  // toggleProxy 내부: electronAPI guard가 try 블록 첫줄에 존재
-  const toggleProxyMatch = html.match(/async function toggleProxy\(\)[\s\S]*?try\s*\{([^}]*?)if \(proxyRunning\)/);
+  // toggleProxy 내부: electronAPI guard가 try 블록 전에 존재 (early return)
+  const toggleProxyMatch = html.match(/async function toggleProxy\(\)[\s\S]*?if \(!window\.electronAPI\) return;[\s\S]*?try\s*\{/);
   expect(toggleProxyMatch).not.toBeNull();
-  expect(toggleProxyMatch![1]).toContain('if (!window.electronAPI)');
 
   // 페이지 로드 sync: optional chaining 사용
   const syncBlock = html.match(/프록시 상태 동기화[\s\S]*?\}\)\(\)/);
