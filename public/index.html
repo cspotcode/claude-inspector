@@ -3067,7 +3067,8 @@ function renderProxyDetail() {
           const cacheWrite = usage.cache_creation_input_tokens || 0;
           const uncached = usage.input_tokens || 0;
           const cachePct = totalIn > 0 ? Math.round((cacheRead / totalIn) * 100) : 0;
-          // 모델별 비용 계산 ($/MTok)
+          // 모델별 비용 계산 ($/MTok) — 가격 변경 시 PRICING_DATE도 함께 업데이트
+          const PRICING_DATE = '2026-03-13';
           const model = entry.request?.body?.model || entry.response?.body?.model || '';
           const isOpus4 = model.includes('opus-4-') && !model.includes('opus-4-1'); // opus 4.5/4.6 = $5/$25
           const isOldOpus = model.includes('opus-4-1') || model.includes('opus-4-0') || model.includes('opus-3'); // $15/$75
@@ -3080,7 +3081,7 @@ function renderProxyDetail() {
           const costStr = '$' + cost.toFixed(4);
           const fmtCost = (n) => '$' + (n / 1_000_000).toFixed(4);
           const popData = JSON.stringify({
-            model: model || '불명', kb,
+            model: model || '불명', kb, pricingDate: PRICING_DATE,
             rows: [
               { label: '캐시읽기', tokens: fmtTok(cacheRead), price: crP, cost: fmtCost(cacheRead * crP) },
               { label: '캐시쓰기', tokens: fmtTok(cacheWrite), price: cwP, cost: fmtCost(cacheWrite * cwP) },
@@ -3397,7 +3398,7 @@ document.addEventListener('click', (e) => {
   pop.className = 'token-popover';
   // 캐시 적중률 높으면 절감 설명, 낮으면 생략
   let noteHtml = `<div class="token-popover-note">`;
-  noteHtml += `💡 가격은 모델마다 다름. MTok = 백만 토큰 단위 가격.`;
+  noteHtml += `💡 가격 기준일: ${d.pricingDate}. 모델마다 단가 다름. MTok = 백만 토큰.`;
   if (d.cachePct >= 50) noteHtml += `<br>캐시 ${d.cachePct}%: 입력의 대부분을 캐시에서 저렴하게 읽어 비용 절감.`;
   noteHtml += `</div>`;
   pop.innerHTML = `<div class="token-popover-title"><span>비용 계산</span><span class="token-popover-copy" data-text="${textLines.join('\n').replace(/"/g, '&quot;')}">복사</span></div>`
