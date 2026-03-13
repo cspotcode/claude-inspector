@@ -3026,26 +3026,33 @@ function renderProxyDetail() {
         const usage = entry.response?.body?.usage;
         if (usage) {
           const totalIn = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
-          let parts = `<span class="tt-badge">${kb} KB</span>`;
-          parts += `<span class="tt-badge">↑ ${fmtTok(totalIn)} in</span>`;
-          parts += `<span class="tt-badge">↓ ${fmtTok(usage.output_tokens)} out</span>`;
-          // 캐시 비율 표시
+          const outTok = usage.output_tokens || 0;
           const cacheRead = usage.cache_read_input_tokens || 0;
           const cacheWrite = usage.cache_creation_input_tokens || 0;
-          if (cacheRead || cacheWrite) {
-            const cacheParts = [];
-            if (cacheRead) cacheParts.push(`♻${fmtTok(cacheRead)} read`);
-            if (cacheWrite) cacheParts.push(`📝${fmtTok(cacheWrite)} write`);
-            const uncached = usage.input_tokens || 0;
-            if (uncached) cacheParts.push(`${fmtTok(uncached)} uncached`);
-            parts += `<span class="tt-badge" style="opacity:0.7">${cacheParts.join(' · ')}</span>`;
-          }
-          parts += `<span style="color:var(--green);font-size:9px;margin-left:4px">actual</span>`;
-          return `<div class="proxy-token-pill">${parts}</div>`;
+          const uncached = usage.input_tokens || 0;
+          const cachePct = totalIn > 0 ? Math.round((cacheRead / totalIn) * 100) : 0;
+          // 모델별 비용 계산 ($/MTok)
+          const model = entry.request?.body?.model || entry.response?.body?.model || '';
+          const isOpus4 = model.includes('opus-4-') && !model.includes('opus-4-1'); // opus 4.5/4.6 = $5/$25
+          const isOldOpus = model.includes('opus-4-1') || model.includes('opus-4-0') || model.includes('opus-3'); // $15/$75
+          const isHaiku = model.includes('haiku');
+          let inP = 3, outP = 15, crP = 0.3, cwP = 3.75; // sonnet default
+          if (isOpus4) { inP = 5; outP = 25; crP = 0.5; cwP = 6.25; }
+          else if (isOldOpus) { inP = 15; outP = 75; crP = 1.5; cwP = 18.75; }
+          else if (isHaiku) { inP = 1; outP = 5; crP = 0.1; cwP = 1.25; }
+          const cost = (uncached * inP + cacheRead * crP + cacheWrite * cwP + outTok * outP) / 1_000_000;
+          const costStr = cost >= 1 ? '$' + cost.toFixed(2) : cost >= 0.01 ? '$' + cost.toFixed(3) : '$' + cost.toFixed(4);
+          const tooltip = `입력: ${fmtTok(totalIn)} 토큰 (캐시읽기 ${fmtTok(cacheRead)} + 캐시쓰기 ${fmtTok(cacheWrite)} + 미캐시 ${fmtTok(uncached)})\n출력: ${fmtTok(outTok)} 토큰\n캐시 적중률: ${cachePct}%\n추정 비용: ${costStr}`;
+          let parts = `<span class="tt-badge">${kb} KB</span>`;
+          parts += `<span class="tt-badge">입력 ${fmtTok(totalIn)}</span>`;
+          parts += `<span class="tt-badge">출력 ${fmtTok(outTok)}</span>`;
+          if (cachePct > 0) parts += `<span class="tt-badge" style="color:var(--green)">캐시 ${cachePct}%</span>`;
+          parts += `<span class="tt-badge" style="color:var(--yellow)">${costStr}</span>`;
+          return `<div class="proxy-token-pill" title="${tooltip}">${parts}</div>`;
         }
         const tokens = Math.ceil(bytes / 3.5);
         const tokStr = fmtTok(tokens);
-        return `<div class="proxy-token-pill"><span class="tt-badge">${kb} KB</span><span class="tt-badge">~${tokStr} tokens</span><span style="color:var(--dim);font-size:9px;margin-left:4px">estimated</span></div>`;
+        return `<div class="proxy-token-pill"><span class="tt-badge">${kb} KB</span><span class="tt-badge">~${tokStr} tok (추정)</span></div>`;
       })()
     : '';
   const prevScrollTop = document.getElementById('proxyDetailCode')?.scrollTop ?? 0;
