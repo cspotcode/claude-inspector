@@ -1,3 +1,24 @@
+const Sentry = require('@sentry/electron/main');
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  environment: process.env.NODE_ENV || 'development',
+  release: `claude-inspector@${require('./package.json').version}`,
+  beforeSend(event) {
+    if (event.breadcrumbs) {
+      event.breadcrumbs = event.breadcrumbs.map(bc => {
+        if (bc.data) {
+          delete bc.data['x-api-key'];
+          delete bc.data['X-Api-Key'];
+          delete bc.data['authorization'];
+          delete bc.data['Authorization'];
+        }
+        return bc;
+      });
+    }
+    return event;
+  },
+});
+
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
