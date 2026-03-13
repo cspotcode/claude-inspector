@@ -700,7 +700,12 @@
       grid-template-columns: 1fr auto;
     }
     .token-popover-info { color: var(--dim); font-size: 10px; margin-bottom: 6px; }
+    .token-popover-note {
+      color: var(--dim); font-size: 10px; line-height: 1.5;
+      margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border);
+    }
     .tp-label { color: var(--dim); white-space: nowrap; }
+    .tp-desc { color: var(--dim); font-size: 9px; opacity: 0.7; grid-column: 1 / -1; margin-top: -2px; }
     .tp-formula { color: var(--text); opacity: 0.7; text-align: right; }
     .tp-result { color: var(--yellow, #e0af68); font-weight: 600; text-align: right; white-space: nowrap; }
     .tt-badge {
@@ -3371,20 +3376,36 @@ document.addEventListener('click', (e) => {
   const pill = e.target.closest('.proxy-token-pill[data-cost]');
   if (!pill) return;
   const d = JSON.parse(pill.dataset.cost);
+  const descs = {
+    '캐시읽기': '이전 대화에서 캐시된 토큰 재사용 (가장 저렴)',
+    '캐시쓰기': '새로 캐시에 저장하는 토큰 (가장 비쌈)',
+    '미캐시 입력': '캐시 없이 처리되는 입력 토큰',
+    '출력': 'Claude가 생성한 응답 토큰',
+  };
   const textLines = [`모델: ${d.model}`, `요청 크기: ${d.kb} KB`, ''];
   let rowsHtml = '';
   for (const r of d.rows) {
     rowsHtml += `<div class="token-popover-row"><span class="tp-label">${r.label}</span><span class="tp-formula">${r.tokens} tok × $${r.price}/MTok</span><span class="tp-result">${r.cost}</span></div>`;
+    if (descs[r.label]) rowsHtml += `<div class="tp-desc">${descs[r.label]}</div>`;
     textLines.push(`${r.label}: ${r.tokens} tok × $${r.price}/MTok = ${r.cost}`);
   }
   textLines.push('', `합계: ${d.total}`, `캐시 적중률: ${d.cachePct}%`);
+  const cacheNote = d.cachePct >= 90
+    ? `캐시 ${d.cachePct}%: 대부분 캐시에서 읽어 비용이 크게 절감됨. 캐시 없이 전부 미캐시로 처리됐다면 약 ${(parseFloat(d.total.replace('$','')) / (d.cachePct > 0 ? (100 - d.cachePct) / 100 + d.cachePct / 100 : 1)).toFixed(2)}배 이상 비쌀 수 있음.`
+    : '';
   const pop = document.createElement('div');
   pop.className = 'token-popover';
+  // 캐시 적중률 높으면 절감 설명, 낮으면 생략
+  let noteHtml = `<div class="token-popover-note">`;
+  noteHtml += `💡 가격은 모델마다 다름. MTok = 백만 토큰 단위 가격.`;
+  if (d.cachePct >= 50) noteHtml += `<br>캐시 ${d.cachePct}%: 입력의 대부분을 캐시에서 저렴하게 읽어 비용 절감.`;
+  noteHtml += `</div>`;
   pop.innerHTML = `<div class="token-popover-title"><span>비용 계산</span><span class="token-popover-copy" data-text="${textLines.join('\n').replace(/"/g, '&quot;')}">복사</span></div>`
     + `<div class="token-popover-info">모델: ${d.model} · 요청 크기: ${d.kb} KB</div>`
     + rowsHtml
     + `<div class="token-popover-row tp-total"><span class="tp-label">합계</span><span class="tp-result">${d.total}</span></div>`
-    + `<div class="token-popover-row tp-total"><span class="tp-label">캐시 적중률</span><span class="tp-result">${d.cachePct}%</span></div>`;
+    + `<div class="token-popover-row tp-total"><span class="tp-label">캐시 적중률</span><span class="tp-result">${d.cachePct}%</span></div>`
+    + noteHtml;
   pill.appendChild(pop);
 });
 
