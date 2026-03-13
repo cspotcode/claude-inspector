@@ -124,13 +124,14 @@ ipcMain.handle('open-file', async () => {
 });
 
 ipcMain.handle('get-token-estimate', (_event, text) => {
-  // Rough approximation: ~4 chars per token
-  return Math.ceil((text || '').length / 4);
+  // Rough approximation: ~4 chars per token (cap at 10MB)
+  const s = (text || '').slice(0, 10_000_000);
+  return Math.ceil(s.length / 4);
 });
 
 ipcMain.handle('proxy-start', (_event, port = 9090) => {
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    return { error: 'Invalid port: must be 1–65535' };
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    return { error: 'Invalid port: must be 1024–65535' };
   }
   if (proxyServer) return { running: true, port: proxyServer.address().port };
 
