@@ -7,7 +7,7 @@
 Claude Code CLI 트래픽을 실시간으로 가로채<br>
 5가지 프롬프트 증강 메커니즘을 모두 시각화하는 MITM 프록시.
 
-[설치](#설치) · [배울 수 있는 것들](#배울-수-있는-것들) · [프록시 모드](#프록시-모드) · [동작 원리](#동작-원리)
+[설치](#설치) · [배울 수 있는 것들](#배울-수-있는-것들) · [프록시 모드](#프록시-모드) · [기술 스택](#기술-스택)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub release](https://img.shields.io/github/v/release/kangraemin/claude-inspector)](https://github.com/kangraemin/claude-inspector/releases/latest)
@@ -20,11 +20,11 @@ Claude Code CLI 트래픽을 실시간으로 가로채<br>
 ---
 
 <p align="center">
-  <img src="public/screenshots/proxy-request-en.png" width="100%" alt="Proxy — CLAUDE.md Global/Local 섹션 칩과 인라인 텍스트 하이라이트가 표시된 Request 뷰" />
+  <img src="public/screenshots/proxy-request-ko.png" width="100%" alt="Proxy — CLAUDE.md Global/Local 섹션 칩과 인라인 텍스트 하이라이트가 표시된 Request 뷰" />
 </p>
 
 <p align="center">
-  <img src="public/screenshots/proxy-analysis-en.png" width="100%" alt="Proxy — 5가지 메커니즘을 자동 감지하고 섹션 내용을 보여주는 Analysis 뷰" />
+  <img src="public/screenshots/proxy-analysis-ko.png" width="100%" alt="Proxy — 5가지 메커니즘을 자동 감지하고 섹션 내용을 보여주는 Analysis 뷰" />
 </p>
 
 ## 배울 수 있는 것들
