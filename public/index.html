@@ -3437,7 +3437,7 @@ document.addEventListener('click', (e) => {
   const textLines = [`${i18n.t('token.model')}: ${d.model}`, `${i18n.t('token.reqSize')}: ${d.kb} KB`, ''];
   let rowsHtml = '';
   for (const r of d.rows) {
-    rowsHtml += `<div class="token-popover-row"><span class="tp-label">${r.label}</span><span class="tp-formula">${r.tokens} tok × $${r.price}/MTok</span><span class="tp-result">${r.cost}</span></div>`;
+    rowsHtml += `<div class="token-popover-row"><span class="tp-label">${esc(r.label)}</span><span class="tp-formula">${esc(r.tokens)} tok × $${esc(r.price)}/MTok</span><span class="tp-result">${esc(r.cost)}</span></div>`;
     if (descs[r.label]) rowsHtml += `<div class="tp-desc">${descs[r.label]}</div>`;
     textLines.push(`${r.label}: ${r.tokens} tok × $${r.price}/MTok = ${r.cost}`);
   }
@@ -3453,10 +3453,10 @@ document.addEventListener('click', (e) => {
   if (d.cachePct >= 50) noteHtml += `<br>${i18n.t('token.noteCacheSaving', { pct: d.cachePct })}`;
   noteHtml += `</div>`;
   pop.innerHTML = `<div class="token-popover-title"><span>${i18n.t('token.costTitle')}</span><span class="token-popover-copy" data-text="${textLines.join('\n').replace(/"/g, '&quot;')}">${i18n.t('token.copyBtn')}</span></div>`
-    + `<div class="token-popover-info">${i18n.t('token.model')}: ${d.model} · ${i18n.t('token.reqSize')}: ${d.kb} KB</div>`
+    + `<div class="token-popover-info">${i18n.t('token.model')}: ${esc(d.model)} · ${i18n.t('token.reqSize')}: ${esc(d.kb)} KB</div>`
     + rowsHtml
-    + `<div class="token-popover-row tp-total"><span class="tp-label">${i18n.t('token.total')}</span><span class="tp-result">${d.total}</span></div>`
-    + `<div class="token-popover-row tp-total"><span class="tp-label">${i18n.t('token.cacheHitRate')}</span><span class="tp-result">${d.cachePct}%</span></div>`
+    + `<div class="token-popover-row tp-total"><span class="tp-label">${i18n.t('token.total')}</span><span class="tp-result">${esc(d.total)}</span></div>`
+    + `<div class="token-popover-row tp-total"><span class="tp-label">${i18n.t('token.cacheHitRate')}</span><span class="tp-result">${esc(d.cachePct)}%</span></div>`
     + noteHtml;
   pill.appendChild(pop);
 });
