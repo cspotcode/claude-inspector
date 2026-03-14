@@ -1,4 +1,4 @@
-require('@sentry/electron/renderer').init();
+try { require('@sentry/electron/renderer').init(); } catch {}
 
 const { contextBridge, ipcRenderer } = require('electron');
 
