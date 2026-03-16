@@ -41,6 +41,19 @@
     .logo-text { font-size: 15px; font-weight: 700; }
     .logo-sub { font-size: 11px; color: var(--dim); }
     .logo-ver { font-size: 10px; color: var(--dim); opacity: 0.6; }
+    .update-badge {
+      font-size: 10px;
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: 4px;
+      padding: 1px 5px;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      display: none;
+    }
+    .update-badge:hover { background: rgba(74, 222, 128, 0.2); }
     .header-right { display: flex; align-items: center; gap: 8px; }
 
     /* ── Layout ── */
@@ -501,6 +514,7 @@
     <span class="logo-text">Claude Inspector</span>
     <span class="logo-sub" data-i18n="header.logoSub">Prompt Mechanism Visualizer</span>
     <span class="logo-ver" id="buildVer"></span>
+    <a class="update-badge" id="updateBadge" href="#" target="_blank" rel="noopener"></a>
   </div>
   <div class="header-right">
     <button id="langToggleBtn" onclick="i18n.setLocale(i18n.locale==='ko'?'en':'ko')"
@@ -2187,7 +2201,35 @@ if (window.electronAPI?.platform === 'darwin') document.body.classList.add('darw
 
 fetch('build-info.json').then(r=>r.json()).then(b=>{
   document.getElementById('buildVer').textContent = `v${b.version} (${b.hash})`;
+  checkForUpdate(b.version);
 }).catch(()=>{});
+
+function checkForUpdate(currentVersion) {
+  if (sessionStorage.getItem('updateChecked')) return;
+  sessionStorage.setItem('updateChecked', '1');
+  fetch('https://api.github.com/repos/kangraemin/claude-inspector/releases/latest', {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (!data?.tag_name) return;
+    const latest = data.tag_name.replace(/^v/, '');
+    if (isNewerVersion(latest, currentVersion)) {
+      const badge = document.getElementById('updateBadge');
+      badge.textContent = `↑ v${latest}`;
+      badge.href = data.html_url;
+      badge.style.display = 'inline';
+    }
+  })
+  .catch(() => {});
+}
+
+function isNewerVersion(latest, current) {
+  const toNum = v => v.split('.').map(Number);
+  const [la, lb, lc] = toNum(latest);
+  const [ca, cb, cc] = toNum(current);
+  return la > ca || (la === ca && lb > cb) || (la === ca && lb === cb && lc > cc);
+}
 
 // Apply initial i18n (after DOM is ready)
 applyI18n();
