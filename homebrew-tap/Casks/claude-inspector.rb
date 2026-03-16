@@ -3,11 +3,11 @@ cask "claude-inspector" do
 
   on_arm do
     url "https://github.com/kangraemin/claude-inspector/releases/download/v#{version}/Claude-Inspector-#{version}-arm64.dmg"
-    sha256 "7f4a837f2bf08931b543f4bca9c66c6d155629732d806c389b3c7df964a29cce"
+    sha256 "e6ce398f6a5fdad1290bf96e72361cb03f224f4c782821d3c7986ac3d226a65c"
   end
   on_intel do
     url "https://github.com/kangraemin/claude-inspector/releases/download/v#{version}/Claude-Inspector-#{version}-x64.dmg"
-    sha256 "8fa4cfb979628985404ab078d561bd8b6aee18530863e09482d602c1aa89c0e2"
+    sha256 "4396c8a1e8e7aaa01b5cff3eeb69398a06aace2bf4b980e45048faed448cc223"
   end
 
   name "Claude Inspector"
