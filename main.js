@@ -20,6 +20,8 @@ Sentry.init({
   },
 });
 
+const analytics = require('./analytics');
+
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const http = require('node:http');
@@ -98,6 +100,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  analytics.init(app.getPath('userData'));
+  analytics.trackEvent('app_open');
   if (process.platform === 'darwin') {
     app.dock.setIcon(path.join(__dirname, 'assets/icon.png'));
   }
@@ -184,6 +188,7 @@ ipcMain.handle('proxy-start', (_event, port = 9090) => {
 
     server.on('listening', () => {
       proxyServer = server;
+      analytics.trackEvent('proxy_started');
       resolve({ running: true, port: server.address().port });
     });
     let retried = false;
