@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 
-const MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || '';
-const API_SECRET     = process.env.GA4_API_SECRET     || '';
+const MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || 'G-Q72NP8CB65';
+const API_SECRET     = process.env.GA4_API_SECRET     || 'ZfvhJ6CeTbuUZIfecLo4JA';
 
 let _clientId = null;
 let _userDataPath = '';
