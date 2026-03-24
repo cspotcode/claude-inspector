@@ -1826,7 +1826,7 @@ function renderProxyDetail() {
           const uncached = usage.input_tokens || 0;
           const cachePct = totalIn > 0 ? Math.round((cacheRead / totalIn) * 100) : 0;
           // 모델별 비용 계산 ($/MTok) — 가격 변경 시 PRICING_DATE도 함께 업데이트
-          const PRICING_DATE = '2026-03-13';
+          const PRICING_DATE = '2026-03-24';
           const model = entry.request?.body?.model || entry.response?.body?.model || '';
           const isOpus4 = model.includes('opus-4-') && !model.includes('opus-4-1'); // opus 4.5/4.6 = $5/$25
           const isOldOpus = model.includes('opus-4-1') || model.includes('opus-4-0') || model.includes('opus-3'); // $15/$75
