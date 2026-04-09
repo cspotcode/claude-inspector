@@ -1764,7 +1764,9 @@ function renderAiFlow(container) {
   if (aiflowState === 'done' && aiflowResult) { renderAiFlowResult(container); return; }
 
   if (aiflowState === 'analyzing') {
-    container.innerHTML = `<div class="aiflow-status"><div class="aiflow-spinner"></div><div class="status-text">${i18n.t('aiflow.analyzing')}</div><div class="aiflow-info-text">${i18n.t('aiflow.captureCount', { count: aiflowSelectedIds.size })}</div></div>`;
+    container.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px';
+    container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><div class="aiflow-spinner"></div><span class="status-text">${i18n.t('aiflow.analyzing')}</span></div>
+      <pre id="aiflowProgressText" style="flex:1;overflow-y:auto;font-size:11px;color:var(--dim);font-family:'SF Mono',monospace;white-space:pre-wrap;word-break:break-word;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-top:12px"></pre>`;
     return;
   }
 
@@ -1789,8 +1791,15 @@ async function startAiFlowAnalysis() {
   const container = document.getElementById('proxyDetailView');
   renderAiFlow(container);
 
+  // 실시간 프로그레스
+  window.electronAPI.onAiflowProgress((text) => {
+    const pre = document.getElementById('aiflowProgressText');
+    if (pre) { pre.textContent = text; pre.scrollTop = pre.scrollHeight; }
+  });
+
   const prompt = buildAiFlowPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
+  window.electronAPI.offAiflowProgress();
 
   if (result.success) {
     aiflowResult = parseAiFlowResponse(result.response);

@@ -235,15 +235,20 @@ ipcMain.handle('proxy-stop', () => {
 
 // ─── AI Flow: claude -p ─────────────────────────────────────────────────
 ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
-  const { execFile } = require('child_process');
+  const { spawn } = require('child_process');
   return new Promise((resolve) => {
-    execFile('claude', ['-p', '--model', 'sonnet', prompt], {
-      timeout: 60000,
-      maxBuffer: 10 * 1024 * 1024,
-    }, (err, stdout) => {
-      if (err) resolve({ success: false, error: err.message });
+    const child = spawn('claude', ['-p', '--model', 'sonnet', prompt], { timeout: 60000 });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+      if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('aiflow-progress', stdout);
+    });
+    child.stderr.on('data', () => {});
+    child.on('close', (code) => {
+      if (code !== 0 && !stdout) resolve({ success: false, error: `Exit code ${code}` });
       else resolve({ success: true, response: stdout });
     });
+    child.on('error', (err) => resolve({ success: false, error: err.message }));
   });
 });
 
