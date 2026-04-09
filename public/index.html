@@ -294,6 +294,11 @@
       align-self: flex-start; color: var(--fg);
     }
     .chat-bubble.streaming { opacity: .8; }
+    .chat-typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+    .chat-typing span { width: 6px; height: 6px; background: var(--dim); border-radius: 50%; animation: chatTyping 1.2s infinite; }
+    .chat-typing span:nth-child(2) { animation-delay: .2s; }
+    .chat-typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes chatTyping { 0%,60%,100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
     .aiflow-chat-input {
       display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border);
       background: var(--panel);
@@ -2212,7 +2217,8 @@ async function sendAiFlowChat() {
     window.electronAPI.onAiflowChatChunk((chunk) => {
       const last = aiflowChatMessages[aiflowChatMessages.length - 1];
       if (last?.role === 'assistant') last.content += chunk;
-      renderChatBubbles(msgs, true);
+      const currentMsgs = document.getElementById('aiflowChatMessages');
+      if (currentMsgs) renderChatBubbles(currentMsgs, true);
     });
 
     const res = await window.electronAPI.aiflowChat({
@@ -2231,17 +2237,21 @@ async function sendAiFlowChat() {
     if (last?.role === 'assistant') last.content = '⚠ Chat requires the Electron app.';
   }
 
-  renderChatBubbles(msgs, false);
-  send.disabled = false;
-  input.disabled = false;
-  input.focus();
+  const finalMsgs = document.getElementById('aiflowChatMessages');
+  if (finalMsgs) renderChatBubbles(finalMsgs, false);
+  const finalSend = document.getElementById('aiflowChatSend');
+  const finalInput = document.getElementById('aiflowChatInput');
+  if (finalSend) finalSend.disabled = false;
+  if (finalInput) { finalInput.disabled = false; finalInput.focus(); }
 }
 
 function renderChatBubbles(container, streaming = false) {
   container.innerHTML = aiflowChatMessages.map((m, i) => {
     const isStreaming = streaming && i === aiflowChatMessages.length - 1 && m.role === 'assistant';
-    const content = m.content || (isStreaming ? '▋' : '');
-    return `<div class="chat-bubble ${m.role}${isStreaming ? ' streaming' : ''}">${esc(content)}${isStreaming && m.content ? '<span style="opacity:.6">▋</span>' : ''}</div>`;
+    const typingDots = '<div class="chat-typing"><span></span><span></span><span></span></div>';
+    const content = m.content || (isStreaming ? '' : '');
+    const cursor = isStreaming ? (m.content ? '<span style="opacity:.6">▋</span>' : typingDots) : '';
+    return `<div class="chat-bubble ${m.role}${isStreaming ? ' streaming' : ''}">${esc(content)}${cursor}</div>`;
   }).join('');
   container.scrollTop = container.scrollHeight;
 }
