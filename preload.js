@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiflowAnalyze: (data) => ipcRenderer.invoke('aiflow-analyze', data),
   onAiflowProgress: (cb) => ipcRenderer.on('aiflow-progress', (_, data) => cb(data)),
   offAiflowProgress: () => ipcRenderer.removeAllListeners('aiflow-progress'),
+  aiflowChat: (data) => ipcRenderer.invoke('aiflow-chat', data),
+  onAiflowChatChunk: (cb) => ipcRenderer.on('aiflow-chat-chunk', (_, data) => cb(data)),
+  offAiflowChatChunk: () => ipcRenderer.removeAllListeners('aiflow-chat-chunk'),
   offProxy: () => {
     ipcRenderer.removeAllListeners('proxy-request');
     ipcRenderer.removeAllListeners('proxy-response');

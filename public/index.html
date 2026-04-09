@@ -266,6 +266,52 @@
     .aiflow-mermaid { padding: 12px; overflow-x: auto; background: var(--bg); }
     .aiflow-mermaid .mermaid { text-align: center; }
 
+    /* ── AI Flow Chat ── */
+    .aiflow-chat {
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+      display: flex; flex-direction: column; margin-top: 4px;
+    }
+    .aiflow-chat-header {
+      padding: 8px 12px; background: rgba(86,156,214,.08);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--blue);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .aiflow-chat-messages {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 12px; max-height: 340px; overflow-y: auto;
+    }
+    .chat-bubble {
+      padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6;
+      max-width: 90%; white-space: pre-wrap; word-break: break-word;
+    }
+    .chat-bubble.user {
+      background: rgba(86,156,214,.15); border: 1px solid rgba(86,156,214,.3);
+      align-self: flex-end; color: var(--fg);
+    }
+    .chat-bubble.assistant {
+      background: rgba(78,201,176,.08); border: 1px solid rgba(78,201,176,.2);
+      align-self: flex-start; color: var(--fg);
+    }
+    .chat-bubble.streaming { opacity: .8; }
+    .aiflow-chat-input {
+      display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .aiflow-chat-textarea {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 10px; color: var(--fg); font-size: 12px;
+      font-family: inherit; resize: none; outline: none; line-height: 1.5;
+    }
+    .aiflow-chat-textarea:focus { border-color: var(--blue); }
+    .aiflow-chat-send {
+      background: var(--blue); color: #fff; border: none; border-radius: 6px;
+      padding: 0 14px; cursor: pointer; font-size: 12px; font-weight: 600;
+      transition: opacity .15s; align-self: flex-end; height: 34px;
+    }
+    .aiflow-chat-send:disabled { opacity: .4; cursor: not-allowed; }
+    .aiflow-chat-send:hover:not(:disabled) { opacity: .85; }
+
     /* ── Messages view ── */
     .msgs-list { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow-y: auto; }
     .msg-card { border-radius: 6px; border: 1px solid var(--border); overflow: hidden; font-size: 12px; }
@@ -2042,6 +2088,18 @@ function renderAiFlowResult(container) {
       <div class="aiflow-mermaid"><pre class="mermaid" id="aiflowMermaidPre"></pre></div>
     </div>`;
   }
+
+  // Chat UI
+  html += `<div class="aiflow-chat" id="aiflowChat">
+    <div class="aiflow-chat-header">💬 Ask Claude about this session</div>
+    <div class="aiflow-chat-messages" id="aiflowChatMessages"></div>
+    <div class="aiflow-chat-input">
+      <textarea class="aiflow-chat-textarea" id="aiflowChatInput" rows="2"
+        placeholder="Ask anything about this session…"
+        onkeydown="aiflowChatKeydown(event)"></textarea>
+      <button class="aiflow-chat-send" id="aiflowChatSend" onclick="sendAiFlowChat()">Send</button>
+    </div>
+  </div>`;
 
   html += '</div>';
   container.style.cssText = 'flex:1;overflow-y:auto;display:block';

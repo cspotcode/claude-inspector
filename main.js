@@ -252,4 +252,32 @@ ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
   });
 });
 
+ipcMain.handle('aiflow-chat', (_event, { systemContext, messages }) => {
+  const { spawn } = require('child_process');
+  // Build full prompt: context + conversation history
+  const history = messages.slice(0, -1).map(m =>
+    `${m.role === 'user' ? 'Human' : 'Assistant'}: ${m.content}`
+  ).join('\n\n');
+  const lastMsg = messages[messages.length - 1].content;
+  const prompt = history
+    ? `${systemContext}\n\n---\n\n${history}\n\nHuman: ${lastMsg}`
+    : `${systemContext}\n\n---\n\n${lastMsg}`;
+
+  return new Promise((resolve) => {
+    const child = spawn('claude', ['-p', '--model', 'sonnet', prompt], { timeout: 60000 });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('aiflow-chat-chunk', text);
+    });
+    child.stderr.on('data', () => {});
+    child.on('close', (code) => {
+      if (code !== 0 && !stdout) resolve({ success: false, error: `Exit code ${code}` });
+      else resolve({ success: true, response: stdout });
+    });
+    child.on('error', (err) => resolve({ success: false, error: err.message }));
+  });
+});
+
 app.on('before-quit', () => { if (proxyServer) proxyServer.close(); });
