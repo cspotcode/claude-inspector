@@ -1922,14 +1922,15 @@ After the summary, output a MERMAID flowchart of the session flow:
 ---
 MERMAID:
 graph TD
-    R1["Request #1: short description"] --> R2["Request #2: short description"]
-    R2 --> R3["Request #3: short description"]
-    R3 -->|sub-agent| R4["Request #4: sub-agent task"]
+    R1["Req 1: short description"] --> R2["Req 2: short description"]
+    R2 --> R3["Req 3: short description"]
+    R3 -->|sub-agent| R4["Req 4: sub-agent task"]
 ---
 
 Rules for MERMAID:
 - Use graph TD (top-down)
-- Each node is R{N}["Request #{N}: short label"]
+- Each node is R{N}["Req {N}: short label"] — do NOT use # character in labels
+- Keep labels under 40 characters, no double-quotes inside labels
 - Connect sequential requests with -->
 - Label sub-agent connections with -->|sub-agent|
 - Label tool chains with -->|ToolSearch→MCP| or similar
@@ -2040,9 +2041,29 @@ function renderAiFlowResult(container) {
   // Render mermaid — set textContent (not innerHTML) to avoid HTML escaping issues
   if (result.mermaid && typeof mermaid !== 'undefined') {
     const pre = document.getElementById('aiflowMermaidPre');
-    if (pre) pre.textContent = result.mermaid;
-    mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#2d2d2d', primaryBorderColor: '#4ec9b0', lineColor: '#569cd6', textColor: '#d4d4d4' } });
-    mermaid.run({ querySelector: '.mermaid' });
+    if (pre) {
+      // Sanitize labels: replace " inside ["..."] with ' to avoid parse errors
+      const sanitized = result.mermaid
+        .split('\n')
+        .map(line => {
+          // Replace double-underscores (markdown italic trigger in some parsers)
+          return line.replace(/\["([^"]+)"\]/g, (_, label) => {
+            const safe = label
+              .replace(/"/g, "'")
+              .replace(/__/g, '_')
+              .substring(0, 50);  // truncate very long labels
+            return `["${safe}"]`;
+          });
+        })
+        .join('\n');
+      pre.textContent = sanitized;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#2d2d2d', primaryBorderColor: '#4ec9b0', lineColor: '#569cd6', textColor: '#d4d4d4' } });
+      mermaid.run({ querySelector: '.mermaid' }).catch(() => {
+        // Fallback: show raw mermaid code if rendering fails
+        pre.closest('.aiflow-mermaid').innerHTML =
+          `<pre style="font-size:11px;color:var(--dim);white-space:pre-wrap;word-break:break-all">${esc(sanitized)}</pre>`;
+      });
+    }
   }
 }
 
