@@ -221,15 +221,7 @@
       background: var(--surface2); color: var(--text); border: 1px solid var(--border);
     }
     .aiflow-btn-secondary:hover { border-color: var(--blue); }
-    .aiflow-progress {
-      width: 100%; max-width: 320px; height: 6px;
-      background: var(--surface2); border-radius: 3px; overflow: hidden;
-    }
-    .aiflow-progress-bar {
-      height: 100%; background: linear-gradient(90deg, var(--green), var(--blue));
-      transition: width .3s; width: 0%;
-    }
-    .aiflow-progress-text { font-size: 11px; color: var(--dim); font-family: 'SF Mono', monospace; }
+    .aiflow-info-text { font-size: 11px; color: var(--dim); font-family: 'SF Mono', monospace; }
     .aiflow-step {
       border: 1px solid var(--border); border-radius: 6px;
       overflow: hidden; font-size: 12px;
@@ -636,8 +628,8 @@
     </div>
     <div class="proxy-detail">
       <div class="dtabs">
-        <button class="dtab active" data-dtab="aiflow" onclick="showDetailTab('aiflow')" style="color:var(--green)">AI Flow</button>
-        <button class="dtab"        data-dtab="request"  onclick="showDetailTab('request')">Request</button>
+        <button class="dtab"        data-dtab="aiflow" onclick="showDetailTab('aiflow')" style="color:var(--green)">AI Flow</button>
+        <button class="dtab active" data-dtab="request"  onclick="showDetailTab('request')">Request</button>
         <button class="dtab"        data-dtab="response" onclick="showDetailTab('response')">Response</button>
         <button class="dtab"        data-dtab="analysis" onclick="showDetailTab('analysis')" style="color:var(--purple)">Analysis</button>
         <button class="copy-small" style="margin-left:auto" onclick="copyProxyDetail()" data-i18n="copy.copy">Copy</button>
@@ -694,14 +686,9 @@ const LOCALES = {
     },
     aiflow: {
       noCaptures: '분석할 캡처 데이터가 없습니다.<br><small>프록시를 시작하고 Claude Code를 실행하세요</small>',
-      ollamaNotRunning: 'Ollama가 실행되지 않았습니다',
-      ollamaNotRunningDesc: 'AI Flow 분석을 위해 Ollama를 먼저 실행해주세요.<br><code>brew install ollama && ollama serve</code>',
-      modelNotFound: 'gemma4 모델이 설치되지 않았습니다',
-      modelNotFoundDesc: '분석에 사용할 gemma4 모델을 다운로드해주세요 (약 9.6GB)',
-      downloadBtn: 'gemma4 다운로드',
-      downloading: '다운로드 중...',
+      aiflowDesc: 'Claude(Sonnet)로 캡처된 API 요청을 분석하여<br>MCP 호출 흐름, Skill 체인, Sub-Agent 패턴을<br>보기 쉽게 정리해줍니다.',
       analyzeBtn: '세션 흐름 분석하기',
-      analyzing: 'Ollama로 분석 중... (30초~2분 소요)',
+      analyzing: 'Claude(Sonnet)로 분석 중...',
       analyzeFail: '분석 실패: {error}',
       reanalyze: '다시 분석',
       captureCount: '선택된 {count}개의 요청을 분석합니다',
@@ -831,14 +818,9 @@ const LOCALES = {
     },
     aiflow: {
       noCaptures: 'No capture data to analyze.<br><small>Start the proxy and run Claude Code</small>',
-      ollamaNotRunning: 'Ollama is not running',
-      ollamaNotRunningDesc: 'Please run Ollama for AI Flow analysis.<br><code>brew install ollama && ollama serve</code>',
-      modelNotFound: 'gemma4 model not installed',
-      modelNotFoundDesc: 'Download the gemma4 model for analysis (~9.6GB)',
-      downloadBtn: 'Download gemma4',
-      downloading: 'Downloading...',
+      aiflowDesc: 'Analyzes captured API requests using Claude (Sonnet)<br>to visualize MCP call flows, Skill chains,<br>and Sub-Agent patterns.',
       analyzeBtn: 'Analyze Session Flow',
-      analyzing: 'Analyzing with Ollama... (30s–2min)',
+      analyzing: 'Analyzing with Claude (Sonnet)...',
       analyzeFail: 'Analysis failed: {error}',
       reanalyze: 'Re-analyze',
       captureCount: 'Analyzing {count} selected requests',
@@ -1152,11 +1134,10 @@ function escAttr(s) {
 // ─── Proxy ────────────────────────────────────────────────────────────────
 let proxyCaptures = [];
 let selectedProxyId = null;
-let proxyDetailTab = 'aiflow';
-let aiflowState = 'idle'; // idle|checking|no-ollama|no-model|downloading|ready|analyzing|done|error
+let proxyDetailTab = 'request';
+let aiflowState = 'idle'; // idle|ready|analyzing|done|error
 let aiflowResult = null;
 let aiflowError = null;
-let aiflowPullProgress = 0;
 let aiflowSelectedIds = new Set();
 let proxyDetailSearch = '';
 let proxyDetailMechFilter = null;
@@ -1446,6 +1427,25 @@ function setProxyDetailSearch(q) {
     _detailSearchWasFocused = document.activeElement?.id === 'proxyDetailSearchInput';
     searchCurrentIdx = -1;
     if (!q) proxyDetailMechFilter = null;
+
+    // Request/Response 탭: 트리 재렌더링 없이 하이라이트만 갱신 (펼침 상태 보존)
+    if ((proxyDetailTab === 'request' || proxyDetailTab === 'response') && document.getElementById('proxyDetailCode')) {
+      const code = document.getElementById('proxyDetailCode');
+      // 기존 하이라이트 제거
+      code.querySelectorAll('mark.search-hl').forEach(m => {
+        const parent = m.parentNode;
+        parent.replaceChild(document.createTextNode(m.textContent), m);
+        parent.normalize();
+      });
+      if (q) {
+        applyDetailHighlight(code, q);
+        navigateSearchMatch(0);
+      }
+      const inp = document.getElementById('proxyDetailSearchInput');
+      if (inp) { inp.focus(); const len = inp.value.length; inp.setSelectionRange(len, len); }
+      return;
+    }
+
     renderProxyDetail();
     if (q) navigateSearchMatch(0);
   }, 150);
@@ -1743,7 +1743,7 @@ function renderAiFlow(container) {
   container.style.cssText = 'flex:1;overflow-y:auto;display:block';
 
   if (proxyCaptures.length === 0) {
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">📡</div><div class="status-text">${i18n.t('aiflow.noCaptures')}</div></div>`;
+    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">🧠</div><div class="status-text">${i18n.t('aiflow.aiflowDesc')}</div><div style="margin-top:8px;color:var(--dim);font-size:12px">${i18n.t('aiflow.noCaptures')}</div></div>`;
     return;
   }
 
@@ -1751,81 +1751,19 @@ function renderAiFlow(container) {
 
   if (aiflowState === 'analyzing') {
     const selected = aiflowSelectedIds.size || proxyCaptures.length;
-    container.innerHTML = `<div class="aiflow-status"><div class="aiflow-spinner"></div><div class="status-text">${i18n.t('aiflow.analyzing')}</div><div class="aiflow-progress-text">${i18n.t('aiflow.captureCount', { count: selected })}</div></div>`;
-    return;
-  }
-
-  if (aiflowState === 'downloading') {
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">📥</div><div class="status-text">${i18n.t('aiflow.downloading')}</div><div class="aiflow-progress"><div class="aiflow-progress-bar" style="width:${aiflowPullProgress}%"></div></div><div class="aiflow-progress-text">${aiflowPullProgress}%</div></div>`;
+    container.innerHTML = `<div class="aiflow-status"><div class="aiflow-spinner"></div><div class="status-text">${i18n.t('aiflow.analyzing')}</div><div class="aiflow-info-text">${i18n.t('aiflow.captureCount', { count: selected })}</div></div>`;
     return;
   }
 
   if (aiflowState === 'error') {
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">⚠️</div><div class="aiflow-error">${esc(aiflowError || '')}</div><button class="aiflow-btn aiflow-btn-primary" onclick="startAiFlowCheck()">${i18n.t('aiflow.reanalyze')}</button></div>`;
+    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">⚠️</div><div class="aiflow-error">${esc(aiflowError || '')}</div><button class="aiflow-btn aiflow-btn-primary" onclick="aiflowState='idle';renderAiFlow(document.getElementById('proxyDetailView'))">${i18n.t('aiflow.reanalyze')}</button></div>`;
     return;
   }
 
-  if (aiflowState === 'idle' || aiflowState === 'checking') {
-    aiflowState = 'checking';
-    container.innerHTML = `<div class="aiflow-status"><div class="aiflow-spinner"></div><div class="status-text">Checking Ollama...</div></div>`;
-    checkOllamaAndRender(container);
-    return;
-  }
-
-  if (aiflowState === 'no-ollama') {
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">🦙</div><div style="font-size:14px;font-weight:600">${i18n.t('aiflow.ollamaNotRunning')}</div><div class="status-text">${i18n.t('aiflow.ollamaNotRunningDesc')}</div><button class="aiflow-btn aiflow-btn-primary" onclick="startAiFlowCheck()">Retry</button></div>`;
-    return;
-  }
-
-  if (aiflowState === 'no-model') {
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">🦙</div><div style="font-size:14px;font-weight:600">${i18n.t('aiflow.modelNotFound')}</div><div class="status-text">${i18n.t('aiflow.modelNotFoundDesc')}</div><button class="aiflow-btn aiflow-btn-secondary" onclick="startModelDownload()">${i18n.t('aiflow.downloadBtn')}</button></div>`;
-    return;
-  }
-
-  if (aiflowState === 'ready') {
-    const selected = aiflowSelectedIds.size || proxyCaptures.length;
-    container.innerHTML = `<div class="aiflow-status"><div class="status-icon">🧠</div><div class="aiflow-progress-text">${i18n.t('aiflow.captureCount', { count: selected })}</div><button class="aiflow-btn aiflow-btn-primary" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.analyzeBtn')}</button></div>`;
-    return;
-  }
-}
-
-async function checkOllamaAndRender(container) {
-  try {
-    const status = await window.electronAPI.ollamaStatus();
-    if (!status.available) aiflowState = 'no-ollama';
-    else if (!status.hasGemma4) aiflowState = 'no-model';
-    else aiflowState = 'ready';
-  } catch { aiflowState = 'no-ollama'; }
-  renderAiFlow(container || document.getElementById('proxyDetailView'));
-}
-
-function startAiFlowCheck() {
-  aiflowState = 'idle';
-  renderAiFlow(document.getElementById('proxyDetailView'));
-}
-
-async function startModelDownload() {
-  aiflowState = 'downloading';
-  aiflowPullProgress = 0;
-  const container = document.getElementById('proxyDetailView');
-  renderAiFlow(container);
-
-  window.electronAPI.onOllamaPullProgress((progress) => {
-    if (progress.total && progress.completed) {
-      aiflowPullProgress = Math.round((progress.completed / progress.total) * 100);
-    }
-    const bar = container.querySelector('.aiflow-progress-bar');
-    const text = container.querySelector('.aiflow-progress-text');
-    if (bar) bar.style.width = aiflowPullProgress + '%';
-    if (text) text.textContent = `${aiflowPullProgress}% — ${progress.status || ''}`;
-  });
-
-  const result = await window.electronAPI.ollamaPull('gemma4');
-  window.electronAPI.offOllamaPullProgress();
-
-  if (result.success) aiflowState = 'ready';
-  else { aiflowState = 'error'; aiflowError = result.error || 'Download failed'; }
-  renderAiFlow(container);
+  // idle or ready — show description + analyze button
+  aiflowState = 'ready';
+  const selected = aiflowSelectedIds.size || proxyCaptures.length;
+  container.innerHTML = `<div class="aiflow-status"><div class="status-icon">🧠</div><div class="status-text">${i18n.t('aiflow.aiflowDesc')}</div><div class="aiflow-info-text">${i18n.t('aiflow.captureCount', { count: selected })}</div><button class="aiflow-btn aiflow-btn-primary" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.analyzeBtn')}</button></div>`;
 }
 
 async function startAiFlowAnalysis() {
@@ -1835,7 +1773,7 @@ async function startAiFlowAnalysis() {
   renderAiFlow(container);
 
   const prompt = buildAiFlowPrompt();
-  const result = await window.electronAPI.ollamaAnalyze({ prompt, model: 'gemma4' });
+  const result = await window.electronAPI.aiflowAnalyze({ prompt });
 
   if (result.success) {
     aiflowResult = parseAiFlowResponse(result.response);
