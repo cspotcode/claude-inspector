@@ -147,13 +147,26 @@ ipcMain.handle('proxy-start', (_event, port = 9090) => {
 
         const reqId = Date.now();
 
-        // Session detection: hash first message content as session fingerprint
+        // Session detection: hash first user message text (stripped of system-reminders)
         let sessionId = 'session-' + reqId;
         if (bodyObj?.messages?.length > 1) {
-          const firstMsg = JSON.stringify(bodyObj.messages[0]).slice(0, 500);
-          let hash = 0;
-          for (let i = 0; i < firstMsg.length; i++) hash = ((hash << 5) - hash + firstMsg.charCodeAt(i)) | 0;
-          sessionId = 'session-' + Math.abs(hash).toString(36);
+          // Find first user message and strip injected content
+          const firstUser = bodyObj.messages.find(m => m.role === 'user');
+          if (firstUser) {
+            let text = typeof firstUser.content === 'string' ? firstUser.content
+              : Array.isArray(firstUser.content) ? firstUser.content.filter(c => c.type === 'text').map(c => c.text || '').join('')
+              : '';
+            // Strip system-reminders, command-messages (injected by Claude Code)
+            text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+                       .replace(/<command-message>[\s\S]*?<\/command-message>/g, '')
+                       .replace(/<command-name>[\s\S]*?<\/command-name>/g, '')
+                       .replace(/<command-args>[\s\S]*?<\/command-args>/g, '')
+                       .replace(/<local-command-[\s\S]*?<\/local-command-[^>]*>/g, '')
+                       .trim().slice(0, 200);
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+            sessionId = 'session-' + Math.abs(hash).toString(36);
+          }
         }
 
         const reqData = {
