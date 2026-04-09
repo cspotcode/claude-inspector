@@ -262,6 +262,7 @@
     }
     .aiflow-check { width: 14px; height: 14px; accent-color: var(--green); cursor: pointer; flex-shrink: 0; margin-right: 4px; }
     .prx-entry.aiflow-checked { background: rgba(78,201,176,.08); }
+    .proxy-list.aiflow-mode { user-select: none; }
     .aiflow-mermaid { padding: 12px; overflow-x: auto; background: var(--bg); }
     .aiflow-mermaid .mermaid { text-align: center; }
 
@@ -1258,6 +1259,7 @@ function renderProxyList() {
   const countEl = document.getElementById('proxyCount');
   if (!list) return;
   if (countEl) countEl.textContent = proxyCaptures.length;
+  list.classList.toggle('aiflow-mode', proxyDetailTab === 'aiflow');
 
   if (proxyCaptures.length === 0) {
     list.innerHTML = `<div class="hist-empty">${i18n.t('proxy.noCaptures')}</div>`;
@@ -2123,6 +2125,7 @@ function toggleAiFlowCheck(id) {
 
 // Row click: normal = exclusive, Cmd = toggle, Shift = range
 function aiflowRowClick(id, event) {
+  event.preventDefault();
   if (event.shiftKey && _lastCheckedId !== null) {
     const ids = proxyCaptures.map(e => e.id);
     const from = ids.indexOf(_lastCheckedId);
