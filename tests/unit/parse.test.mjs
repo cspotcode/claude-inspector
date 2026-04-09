@@ -218,9 +218,12 @@ function parseAiFlowResponse(text) {
   while ((match = stepRegex.exec(text)) !== null) {
     positions.push({ idx: match.index, num: parseInt(match[1]), title: match[2].trim(), end: match.index + match[0].length });
   }
+  const mermaidSectionStart = text.search(/\n\s*-*\s*\nMERMAID:/i);
+  const textEnd = mermaidSectionStart > 0 ? mermaidSectionStart : text.length;
+
   for (let i = 0; i < positions.length; i++) {
     const start = positions[i].end;
-    const end = i + 1 < positions.length ? positions[i + 1].idx : text.length;
+    const end = i + 1 < positions.length ? positions[i + 1].idx : textEnd;
     const body = text.slice(start, end).trim();
     const refs = [];
     for (const rm of body.matchAll(/Request\s*#(\d+)/gi)) refs.push(parseInt(rm[1]));
@@ -230,12 +233,15 @@ function parseAiFlowResponse(text) {
   }
   let summary = '';
   if (positions.length > 0) {
-    const lastBody = text.slice(positions[positions.length - 1].end).trim();
+    const lastBody = text.slice(positions[positions.length - 1].end, textEnd).trim();
     const lines = lastBody.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length > 0 && !lines[lines.length - 1].match(/^\[Request/)) summary = lines[lines.length - 1];
   }
   const mermaidMatch = text.match(/MERMAID:\s*\n([\s\S]*?)(?:\n---|\s*$)/i);
-  const mermaidCode = mermaidMatch ? mermaidMatch[1].trim() : null;
+  let mermaidCode = null;
+  if (mermaidMatch) {
+    mermaidCode = mermaidMatch[1].trim().replace(/^```[\w]*\s*\n?/gm, '').replace(/```\s*$/gm, '').trim();
+  }
 
   return { steps, summary, mermaid: mermaidCode, raw: text };
 }

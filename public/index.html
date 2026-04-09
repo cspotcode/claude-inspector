@@ -2023,9 +2023,13 @@ function parseAiFlowResponse(text) {
     positions.push({ idx: match.index, num: parseInt(match[1]), title: match[2].trim(), end: match.index + match[0].length });
   }
 
+  // Find where MERMAID section starts (to exclude from step bodies)
+  const mermaidSectionStart = text.search(/\n\s*-*\s*\nMERMAID:/i);
+  const textEnd = mermaidSectionStart > 0 ? mermaidSectionStart : text.length;
+
   for (let i = 0; i < positions.length; i++) {
     const start = positions[i].end;
-    const end = i + 1 < positions.length ? positions[i + 1].idx : text.length;
+    const end = i + 1 < positions.length ? positions[i + 1].idx : textEnd;
     const body = text.slice(start, end).trim();
     const refs = [];
     for (const rm of body.matchAll(/Request\s*#(\d+)/gi)) refs.push(parseInt(rm[1]));
@@ -2038,7 +2042,7 @@ function parseAiFlowResponse(text) {
   let summary = '';
   if (positions.length > 0) {
     const lastStart = positions[positions.length - 1].end;
-    const lastBody = text.slice(lastStart).trim();
+    const lastBody = text.slice(lastStart, textEnd).trim();
     const lines = lastBody.split('\n').map(l => l.trim()).filter(Boolean);
     // Summary is the last line that doesn't look like a step reference
     if (lines.length > 0) {
