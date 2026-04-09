@@ -224,7 +224,9 @@ function parseAiFlowResponse(text) {
     const body = text.slice(start, end).trim();
     const refs = [];
     for (const rm of body.matchAll(/Request\s*#(\d+)/gi)) refs.push(parseInt(rm[1]));
-    steps.push({ num: positions[i].num, title: positions[i].title, body, refs: [...new Set(refs)] });
+    const hlMatch = body.match(/HIGHLIGHT:\s*(.+)/i);
+    const highlight = hlMatch ? hlMatch[1].trim() : null;
+    steps.push({ num: positions[i].num, title: positions[i].title, body, refs: [...new Set(refs)], highlight: highlight === 'none' ? null : highlight });
   }
   let summary = '';
   if (positions.length > 0) {
@@ -254,4 +256,22 @@ test('단일 STEP + summary', () => {
   const result = parseAiFlowResponse(text);
   assert.equal(result.steps.length, 1);
   assert.equal(result.summary, '전체 요약입니다.');
+});
+
+test('HIGHLIGHT 파싱', () => {
+  const text = 'STEP 1: MCP 호출\n[Request #1]\nHIGHLIGHT: mcp__context7__query-docs\n설명';
+  const result = parseAiFlowResponse(text);
+  assert.equal(result.steps[0].highlight, 'mcp__context7__query-docs');
+});
+
+test('HIGHLIGHT none → null', () => {
+  const text = 'STEP 1: 일반 대화\n[Request #1]\nHIGHLIGHT: none\n설명';
+  const result = parseAiFlowResponse(text);
+  assert.equal(result.steps[0].highlight, null);
+});
+
+test('HIGHLIGHT 없으면 null', () => {
+  const text = 'STEP 1: 대화\n[Request #1]\n설명만 있음';
+  const result = parseAiFlowResponse(text);
+  assert.equal(result.steps[0].highlight, null);
 });

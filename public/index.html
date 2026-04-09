@@ -1869,20 +1869,29 @@ Focus on:
 - Slash command → Skill execution flows
 - Multi-turn conversation progression
 
+When you detect these patterns, explain the MECHANISM:
+- **MCP dynamic loading**: Claude Code has deferred MCP tools. When Claude needs one, it calls ToolSearch to fetch the schema, then the tool becomes callable. Explain this loading chain when you see ToolSearch → mcp__* patterns.
+- **Skill loading**: When a slash command is used, Claude Code injects it via <command-message>. Claude then calls the Skill tool to load and execute the skill prompt. Explain this when you see command-message → Skill tool_use patterns.
+- **ToolSearch → ToolUse**: Deferred tools aren't loaded until needed. ToolSearch fetches their schemas on demand. Explain when you see ToolSearch followed by a tool_use for the searched tool.
+
 Output format (strictly follow):
 ---
 STEP 1: [short title]
 [Request #N, Request #M]
-[2-3 sentence description]
+HIGHLIGHT: <most_relevant_tool_use_name or "none">
+[2-3 sentence description. When MCP/Skill mechanisms are involved, explain HOW the loading works.]
 
 STEP 2: [short title]
 [Request #N]
+HIGHLIGHT: <tool_use_name or "none">
 [2-3 sentence description]
 ---
 
 Rules:
 - Group related requests into the same step
 - Always reference specific Request #N numbers in brackets
+- HIGHLIGHT must be a single tool_use name (e.g., "ToolSearch", "mcp__context7__query-docs", "Skill") or "none"
+- When MCP or Skill mechanisms are involved, include a brief explanation of HOW the loading works
 - If sub-agent requests exist, clearly indicate they are sub-agent calls
 - Number steps sequentially (STEP 1, STEP 2, ...)
 - End with a one-line overall session summary after the last step
@@ -1906,7 +1915,9 @@ function parseAiFlowResponse(text) {
     const body = text.slice(start, end).trim();
     const refs = [];
     for (const rm of body.matchAll(/Request\s*#(\d+)/gi)) refs.push(parseInt(rm[1]));
-    steps.push({ num: positions[i].num, title: positions[i].title, body, refs: [...new Set(refs)] });
+    const hlMatch = body.match(/HIGHLIGHT:\s*(.+)/i);
+    const highlight = hlMatch ? hlMatch[1].trim() : null;
+    steps.push({ num: positions[i].num, title: positions[i].title, body, refs: [...new Set(refs)], highlight: highlight === 'none' ? null : highlight });
   }
 
   // Extract summary: last non-empty line after all steps
@@ -1934,13 +1945,14 @@ function renderAiFlowResult(container) {
 
   for (const step of result.steps) {
     const isSub = step.body.toLowerCase().includes('sub-agent');
+    const hl = step.highlight ? `, '${step.highlight.replace(/'/g, "\\'")}'` : '';
     const refBadges = step.refs.map(n =>
-      `<span class="aiflow-ref" onclick="jumpToRequest(${n})" title="Request #${n}">${i18n.t('aiflow.requestRef', { n })}</span>`
+      `<span class="aiflow-ref" onclick="jumpToRequest(${n}${hl})" title="Request #${n}">${i18n.t('aiflow.requestRef', { n })}</span>`
     ).join(' ');
 
     // Clean body: remove [Request #N...] lines, keep description
     const bodyLines = step.body.split('\n').filter(l => l.trim());
-    const description = bodyLines.filter(l => !l.match(/^\s*\[Request\s*#/i)).join('\n');
+    const description = bodyLines.filter(l => !l.match(/^\s*\[Request\s*#/i) && !l.match(/^\s*HIGHLIGHT:/i)).join('\n');
 
     html += `<div class="aiflow-step"><div class="aiflow-step-header"><div class="aiflow-step-num${isSub ? ' sub' : ''}">${step.num}</div><div class="aiflow-step-title">${esc(step.title)}</div><div style="display:flex;gap:4px;flex-shrink:0">${refBadges}</div></div><div class="aiflow-step-body">${esc(description)}</div></div>`;
   }
@@ -1954,18 +1966,40 @@ function renderAiFlowResult(container) {
   container.innerHTML = html;
 }
 
-function jumpToRequest(reqNum) {
+function jumpToRequest(reqNum, toolName) {
   // proxyCaptures is newest-first; reqNum 1 = oldest (last element)
   const selected = aiflowSelectedIds.size > 0
     ? proxyCaptures.filter(e => aiflowSelectedIds.has(e.id))
     : [...proxyCaptures];
   const idx = selected.length - reqNum;
   if (idx < 0 || idx >= selected.length) return;
-  selectedProxyId = selected[idx].id;
+  const entry = selected[idx];
+  selectedProxyId = entry.id;
   renderProxyList();
   showDetailTab('request');
   requestAnimationFrame(() => {
     document.querySelector('.prx-entry.selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (toolName) {
+      const code = document.getElementById('proxyDetailCode');
+      if (!code) return;
+      // Find tool_use id by name in request messages
+      const msgs = entry.body?.messages || [];
+      let toolUseId = null;
+      for (const m of msgs) {
+        const contents = Array.isArray(m.content) ? m.content : [];
+        for (const c of contents) {
+          if (c.type === 'tool_use' && c.name === toolName) { toolUseId = c.id; break; }
+        }
+        if (toolUseId) break;
+      }
+      // Also check response content
+      if (!toolUseId && entry.response?.body?.content) {
+        for (const c of entry.response.body.content) {
+          if (c.type === 'tool_use' && c.name === toolName) { toolUseId = c.id; break; }
+        }
+      }
+      if (toolUseId) setTimeout(() => highlightToolUseById(code, toolUseId), 100);
+    }
   });
 }
 
