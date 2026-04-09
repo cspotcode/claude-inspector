@@ -234,7 +234,10 @@ function parseAiFlowResponse(text) {
     const lines = lastBody.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length > 0 && !lines[lines.length - 1].match(/^\[Request/)) summary = lines[lines.length - 1];
   }
-  return { steps, summary, raw: text };
+  const optMatch = text.match(/OPTIMIZATION:\s*\n([\s\S]*?)(?:\n---|\s*$)/i);
+  const optimization = optMatch ? optMatch[1].trim() : null;
+
+  return { steps, summary, optimization, raw: text };
 }
 
 test('STEP 포맷 정상 파싱', () => {
@@ -274,4 +277,17 @@ test('HIGHLIGHT 없으면 null', () => {
   const text = 'STEP 1: 대화\n[Request #1]\n설명만 있음';
   const result = parseAiFlowResponse(text);
   assert.equal(result.steps[0].highlight, null);
+});
+
+test('OPTIMIZATION 섹션 파싱', () => {
+  const text = 'STEP 1: 대화\n[Request #1]\n설명\n\nOPTIMIZATION:\n- 캐시 효율 높음\n- CLAUDE.md 적정 크기\n---';
+  const result = parseAiFlowResponse(text);
+  assert.ok(result.optimization);
+  assert.ok(result.optimization.includes('캐시 효율'));
+});
+
+test('OPTIMIZATION 없으면 null', () => {
+  const text = 'STEP 1: 대화\n[Request #1]\n설명만';
+  const result = parseAiFlowResponse(text);
+  assert.equal(result.optimization, null);
 });

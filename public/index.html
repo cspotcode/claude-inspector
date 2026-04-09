@@ -696,6 +696,7 @@ const LOCALES = {
       summaryTitle: '세션 흐름 요약',
       selectAll: '전체 선택',
       deselectAll: '전체 해제',
+      optimizationTitle: '최적화 조언',
     },
     analysis: {
       noMechanisms: '감지된 메커니즘 없음<br><small>일반 API 요청이거나 분석 지원 외 패턴입니다</small>',
@@ -828,6 +829,7 @@ const LOCALES = {
       summaryTitle: 'Session Flow Summary',
       selectAll: 'Select all',
       deselectAll: 'Deselect all',
+      optimizationTitle: 'Optimization Advice',
     },
     analysis: {
       noMechanisms: 'No mechanisms detected<br><small>Plain API request or unsupported pattern</small>',
@@ -1835,6 +1837,25 @@ function buildAiFlowPrompt() {
     if (det.mcpTools.length) mechs.push('MCP:' + det.mcpTools.map(m => m.name.split('__').slice(2).join('__')).join(','));
     if (mechs.length) summary.mechanisms = mechs;
 
+    // CLAUDE.md / rules sections with sizes
+    if (det.claudeMd) {
+      const sections = parseClaudeMdSections(det.claudeMd);
+      if (sections.length) {
+        summary.prompt_injections = sections.map(s => ({ label: s.label, chars: s.content.length, scope: s.scope }));
+      }
+    }
+
+    // Token usage from response
+    const usage = entry.response?.body?.usage;
+    if (usage) {
+      summary.tokens = {
+        input: usage.input_tokens || 0,
+        output: usage.output_tokens || 0,
+        cache_read: usage.cache_read_input_tokens || 0,
+        cache_write: usage.cache_creation_input_tokens || 0,
+      };
+    }
+
     // Response tool calls
     if (entry.response?.body?.content) {
       const respTools = entry.response.body.content.filter(c => c.type === 'tool_use').map(c => c.name);
@@ -1896,6 +1917,16 @@ Rules:
 - Number steps sequentially (STEP 1, STEP 2, ...)
 - End with a one-line overall session summary after the last step
 
+After all STEPs, add an OPTIMIZATION section:
+---
+OPTIMIZATION:
+- Analyze prompt_injections (CLAUDE.md, rules, memory) sizes. Which files are injected and how large are they? Explain HOW Claude Code loads them (system-reminder injection into messages[]).
+- Check cache efficiency: high cache_read = good (reusing cached tokens). Low cache = wasted tokens being reprocessed.
+- Check if any CLAUDE.md sections seem redundant or too verbose for the task at hand.
+- Suggest specific actions to reduce token usage (e.g., "Global CLAUDE.md is 3000 chars — consider trimming unused rules", "Cache hit rate is only 20% — ensure conversation continuity").
+- If token usage is already efficient, say so briefly.
+---
+
 Data:
 ${JSON.stringify(captures, null, 1)}`;
 }
@@ -1933,7 +1964,11 @@ function parseAiFlowResponse(text) {
     }
   }
 
-  return { steps, summary, raw: text };
+  // Extract OPTIMIZATION section
+  const optMatch = text.match(/OPTIMIZATION:\s*\n([\s\S]*?)(?:\n---|\s*$)/i);
+  const optimization = optMatch ? optMatch[1].trim() : null;
+
+  return { steps, summary, optimization, raw: text };
 }
 
 function renderAiFlowResult(container) {
@@ -1959,6 +1994,16 @@ function renderAiFlowResult(container) {
 
   if (result.summary) {
     html += `<div style="font-size:12px;color:var(--dim);padding:8px 0;border-top:1px solid var(--border)">${esc(result.summary)}</div>`;
+  }
+
+  if (result.optimization) {
+    html += `<div class="aiflow-step" style="border-color:rgba(220,220,170,.3)">
+      <div class="aiflow-step-header" style="background:rgba(220,220,170,.08)">
+        <div class="aiflow-step-num" style="background:var(--yellow)">!</div>
+        <div class="aiflow-step-title" style="color:var(--yellow)">${i18n.t('aiflow.optimizationTitle')}</div>
+      </div>
+      <div class="aiflow-step-body">${esc(result.optimization)}</div>
+    </div>`;
   }
 
   html += '</div>';
