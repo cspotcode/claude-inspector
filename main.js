@@ -139,6 +139,16 @@ ipcMain.handle('proxy-start', (_event, port = 9090) => {
         try { bodyObj = JSON.parse(bodyBuf.toString()); } catch (e) { console.warn('req body parse failed:', e.message); }
 
         const reqId = Date.now();
+
+        // Session detection: hash first message content as session fingerprint
+        let sessionId = 'session-' + reqId;
+        if (bodyObj?.messages?.length > 1) {
+          const firstMsg = JSON.stringify(bodyObj.messages[0]).slice(0, 500);
+          let hash = 0;
+          for (let i = 0; i < firstMsg.length; i++) hash = ((hash << 5) - hash + firstMsg.charCodeAt(i)) | 0;
+          sessionId = 'session-' + Math.abs(hash).toString(36);
+        }
+
         const reqData = {
           id: reqId,
           ts: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -146,6 +156,7 @@ ipcMain.handle('proxy-start', (_event, port = 9090) => {
           path: req.url,
           body: bodyObj,
           isApiKey: !!(req.headers['x-api-key']),
+          sessionId,
         };
         if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('proxy-request', reqData);
 

@@ -261,6 +261,7 @@
       background: rgba(244,135,113,.08); border: 1px solid rgba(244,135,113,.3); border-radius: 6px;
     }
     .aiflow-check { width: 14px; height: 14px; accent-color: var(--green); cursor: pointer; flex-shrink: 0; margin-right: 4px; }
+    .prx-entry.aiflow-checked { background: rgba(78,201,176,.08); }
     .aiflow-mermaid { padding: 12px; overflow-x: auto; background: var(--bg); }
     .aiflow-mermaid .mermaid { text-align: center; }
 
@@ -1273,13 +1274,17 @@ function renderProxyList() {
   list.innerHTML = selectAllHtml + proxyCaptures.map(e => {
     const model = e.body?.model ? `<div class="prx-model">${esc(e.body.model)}</div>` : '';
     const sel = e.id === selectedProxyId ? ' selected' : '';
+    const checked = showCheck && aiflowSelectedIds.has(e.id) ? ' aiflow-checked' : '';
+    const sessionColor = getSessionColor(e.sessionId);
+    const sessionStyle = sessionColor ? `border-left:3px solid ${sessionColor};` : '';
     const statusBadge = e.response
       ? `<span style="font-size:10px;font-family:'SF Mono',monospace;flex-shrink:0;color:${e.response.status < 400 ? 'var(--green)' : 'var(--red)'}">${e.response.status || 'ERR'}</span>`
       : `<span style="font-size:10px;color:var(--dim);flex-shrink:0">…</span>`;
     const checkbox = showCheck
-      ? `<input type="checkbox" class="aiflow-check" ${aiflowSelectedIds.has(e.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleAiFlowSelect(${e.id}, event)">`
+      ? `<input type="checkbox" class="aiflow-check" ${aiflowSelectedIds.has(e.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleAiFlowCheck(${e.id})">`
       : '';
-    return `<div class="prx-entry${sel}" onclick="selectProxyEntry(${e.id})">
+    const entryClick = showCheck ? `aiflowRowClick(${e.id}, event)` : `selectProxyEntry(${e.id})`;
+    return `<div class="prx-entry${sel}${checked}" style="${sessionStyle}" onclick="${entryClick}">
       <div style="display:flex;align-items:center;overflow:hidden">
         ${checkbox}
         <span class="prx-method">${esc(e.method)}</span>
@@ -2089,26 +2094,52 @@ function jumpToRequest(reqNum, toolName) {
   });
 }
 
+// Session color mapping
+const SESSION_COLORS = ['var(--blue)', 'var(--green)', 'var(--orange)', 'var(--purple)', '#4ec9dc', 'var(--yellow)'];
+let _sessionColorMap = {};
+function getSessionColor(sessionId) {
+  if (!sessionId) return '';
+  if (!_sessionColorMap[sessionId]) {
+    _sessionColorMap[sessionId] = SESSION_COLORS[Object.keys(_sessionColorMap).length % SESSION_COLORS.length];
+  }
+  return _sessionColorMap[sessionId];
+}
+
 let _lastCheckedId = null;
 
-function toggleAiFlowSelect(id, event) {
-  if (event && event.shiftKey && _lastCheckedId !== null) {
-    // Shift-click: range select
+function _resetAiFlowIfDone() {
+  if (aiflowState === 'done') { aiflowState = 'ready'; aiflowResult = null; }
+}
+
+// Checkbox direct click: always toggle
+function toggleAiFlowCheck(id) {
+  if (aiflowSelectedIds.has(id)) aiflowSelectedIds.delete(id);
+  else aiflowSelectedIds.add(id);
+  _lastCheckedId = id;
+  _resetAiFlowIfDone();
+  renderProxyList();
+  renderProxyDetail();
+}
+
+// Row click: normal = exclusive, Cmd = toggle, Shift = range
+function aiflowRowClick(id, event) {
+  if (event.shiftKey && _lastCheckedId !== null) {
     const ids = proxyCaptures.map(e => e.id);
     const from = ids.indexOf(_lastCheckedId);
     const to = ids.indexOf(id);
     if (from >= 0 && to >= 0) {
-      const start = Math.min(from, to);
-      const end = Math.max(from, to);
+      const start = Math.min(from, to), end = Math.max(from, to);
       for (let i = start; i <= end; i++) aiflowSelectedIds.add(ids[i]);
     }
-  } else {
-    // Normal click: toggle
+  } else if (event.metaKey || event.ctrlKey) {
     if (aiflowSelectedIds.has(id)) aiflowSelectedIds.delete(id);
     else aiflowSelectedIds.add(id);
+  } else {
+    aiflowSelectedIds.clear();
+    aiflowSelectedIds.add(id);
   }
   _lastCheckedId = id;
-  if (aiflowState === 'done') { aiflowState = 'ready'; aiflowResult = null; }
+  _resetAiFlowIfDone();
   renderProxyList();
   renderProxyDetail();
 }
@@ -2492,6 +2523,7 @@ function clearProxyCaptures() {
   aiflowError = null;
   aiflowSelectedIds = new Set();
   aiflowOptimization = null;
+  _sessionColorMap = {};
   renderProxyList();
   renderProxyDetail();
 }
