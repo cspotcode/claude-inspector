@@ -1834,6 +1834,7 @@ function renderAiFlow(container) {
 async function startAiFlowAnalysis() {
   aiflowState = 'analyzing';
   aiflowResult = null;
+  aiflowChatMessages = [];
   const container = document.getElementById('proxyDetailView');
   renderAiFlow(container);
 
@@ -2132,6 +2133,84 @@ function renderAiFlowResult(container) {
       });
     }
   }
+}
+
+// ─── AI Flow Chat ──────────────────────────────────────────────────────────
+
+let aiflowChatMessages = [];  // { role: 'user'|'assistant', content: string }
+
+function aiflowChatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiFlowChat(); }
+}
+
+function buildAiFlowSystemContext() {
+  if (!aiflowResult) return 'You are analyzing a Claude Code session.';
+  const steps = aiflowResult.steps.map(s => `STEP ${s.num}: ${s.title}\n${s.body}`).join('\n\n');
+  return `You are a helpful assistant analyzing a Claude Code CLI session captured by an inspector tool.\n\nHere is the session analysis:\n\n${steps}\n\nSummary: ${aiflowResult.summary || ''}\n\nAnswer questions about this session concisely.`;
+}
+
+async function sendAiFlowChat() {
+  const input = document.getElementById('aiflowChatInput');
+  const send = document.getElementById('aiflowChatSend');
+  const msgs = document.getElementById('aiflowChatMessages');
+  if (!input || !send || !msgs) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  // Add user bubble
+  aiflowChatMessages.push({ role: 'user', content: text });
+  input.value = '';
+  input.style.height = '';
+  renderChatBubbles(msgs);
+
+  // Disable input while streaming
+  send.disabled = true;
+  input.disabled = true;
+
+  // Add streaming assistant bubble
+  aiflowChatMessages.push({ role: 'assistant', content: '' });
+  renderChatBubbles(msgs, true);
+
+  const systemContext = buildAiFlowSystemContext();
+
+  if (window.electronAPI?.aiflowChat) {
+    window.electronAPI.offAiflowChatChunk?.();
+    window.electronAPI.onAiflowChatChunk((chunk) => {
+      const last = aiflowChatMessages[aiflowChatMessages.length - 1];
+      if (last?.role === 'assistant') last.content += chunk;
+      renderChatBubbles(msgs, true);
+    });
+
+    const res = await window.electronAPI.aiflowChat({
+      systemContext,
+      messages: aiflowChatMessages.slice(0, -1).concat([aiflowChatMessages[aiflowChatMessages.length - 1]])
+    });
+    window.electronAPI.offAiflowChatChunk();
+
+    if (!res.success) {
+      const last = aiflowChatMessages[aiflowChatMessages.length - 1];
+      if (last?.role === 'assistant') last.content = `⚠ Error: ${res.error}`;
+    }
+  } else {
+    // Fallback: web mode not supported
+    const last = aiflowChatMessages[aiflowChatMessages.length - 1];
+    if (last?.role === 'assistant') last.content = '⚠ Chat requires the Electron app.';
+  }
+
+  renderChatBubbles(msgs, false);
+  send.disabled = false;
+  input.disabled = false;
+  input.focus();
+}
+
+function renderChatBubbles(container, streaming = false) {
+  container.innerHTML = aiflowChatMessages.map((m, i) => {
+    const isStreaming = streaming && i === aiflowChatMessages.length - 1 && m.role === 'assistant';
+    const content = m.content || (isStreaming ? '▋' : '');
+    return `<div class="chat-bubble ${m.role}${isStreaming ? ' streaming' : ''}">${esc(content)}${isStreaming && m.content ? '<span style="opacity:.6">▋</span>' : ''}</div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
 }
 
 async function requestOptimization() {
