@@ -265,6 +265,54 @@ test('buildAiFlowSystemContext에 captures 원본 데이터 포함', async () =>
   expect(result).toContain('Test Step');
 });
 
+// ─── 자동 업데이트 UI ────────────────────────────────────────────────────────
+
+test('update-available IPC → 뱃지에 버전 + 다운로드 중 표시', async () => {
+  await app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('update-available', { version: '9.9.9' });
+  });
+  const badge = page.locator('#updateBadge');
+  await expect(badge).toBeVisible({ timeout: 3000 });
+  await expect(badge).toContainText('9.9.9');
+});
+
+test('update-progress IPC → 뱃지에 퍼센트 표시', async () => {
+  await app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('update-progress', { percent: 42 });
+  });
+  const badge = page.locator('#updateBadge');
+  await expect(badge).toContainText('42%', { timeout: 3000 });
+});
+
+test('update-downloaded IPC → 뱃지에 재시작 안내 + onclick 등록', async () => {
+  await app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('update-downloaded', { version: '9.9.9' });
+  });
+  const badge = page.locator('#updateBadge');
+  await expect(badge).toContainText('재시작', { timeout: 3000 });
+  await expect(badge).toContainText('9.9.9');
+
+  const hasOnclick = await page.evaluate(() => {
+    const el = document.getElementById('updateBadge') as HTMLButtonElement;
+    return typeof el?.onclick === 'function';
+  });
+  expect(hasOnclick).toBe(true);
+});
+
+test('update-downloaded 후 뱃지 클릭 시 update-install IPC 호출', async () => {
+  // ipcRenderer.invoke('update-install') 호출 여부를 패치로 확인
+  const invoked = await page.evaluate(async () => {
+    let called = false;
+    const orig = (window as any).electronAPI.installUpdate;
+    (window as any).electronAPI.installUpdate = async () => { called = true; };
+    document.getElementById('updateBadge')?.click();
+    await new Promise(r => setTimeout(r, 100));
+    (window as any).electronAPI.installUpdate = orig;
+    return called;
+  });
+  expect(invoked).toBe(true);
+});
+
 test('프록시 시작→정지 전체 사이클 정상 동작', async () => {
   const btn = page.locator('#proxyStartBtn');
   const portInput = page.locator('#proxyPort');
