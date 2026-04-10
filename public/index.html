@@ -1878,7 +1878,7 @@ function buildCaptureSummaries() {
 
   let lastMainWithAgent = null;
   return selected.map((entry, idx) => {
-    const reqNum = selected.length - idx;
+    const reqNum = idx + 1;
     const summary = { request_num: reqNum, model: entry.body?.model || 'unknown' };
 
     const msgs = entry.body?.messages || [];
@@ -1946,7 +1946,7 @@ function buildAiFlowPrompt() {
   const captures = buildCaptureSummaries();
 
   return `You are analyzing a Claude Code CLI session captured by a proxy inspector.
-Below is a JSON array of ${captures.length} API request/response pairs, ordered newest-first.
+Below is a JSON array of ${captures.length} API request/response pairs, ordered oldest-first.
 Each has a "request_num" (e.g., Request #1 = oldest, Request #${captures.length} = newest).
 The "session" field indicates: "main" = main conversation, "sub-agent(from Request #N)" = spawned by an Agent/Task tool call in Request #N.
 
