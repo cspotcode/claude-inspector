@@ -21,6 +21,13 @@ test.beforeAll(async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
+
+  // 온보딩 모달이 클릭을 막지 않도록 닫기
+  await page.evaluate(() => {
+    localStorage.setItem('ci-onboarded', '1');
+    const modal = document.getElementById('onboardModal');
+    if (modal) modal.style.display = 'none';
+  });
 });
 
 test.afterAll(async () => {
