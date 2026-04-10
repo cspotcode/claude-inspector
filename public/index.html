@@ -2020,6 +2020,8 @@ Rules:
 - Always reference specific Request #N numbers in brackets
 - HIGHLIGHT must be a single tool_use name (e.g., "ToolSearch", "mcp__context7__query-docs", "Skill") or "none"
 - When MCP or Skill mechanisms are involved, include a brief explanation of HOW the loading works
+- Use `response_tools` field to explain causality: "Response to Request #N returned [tool] → this enabled/triggered [action] in Request #M"
+- Each step description should answer: what happened in the request, what did the response return, and how did that response cause the next action
 - If sub-agent requests exist, clearly indicate they are sub-agent calls
 - Number steps sequentially (STEP 1, STEP 2, ...)
 - End with a one-line overall session summary after the last step
@@ -2040,7 +2042,10 @@ graph TD
 
 Rules for MERMAID:
 - Use graph TD (top-down)
-- Show the MECHANISM chain, not just request numbers
+- Show the MECHANISM chain including responses: Request → Response → Next Request
+- Include response nodes to show causality using `response_tools` data:
+  - ToolSearch (Req N) --> Response: schemas returned --> tool_use: mcp__x (Req N+1)
+  - tool_use: X (Req N) --> Response: tool_result Y --> next action (Req N+1)
 - Include these patterns when detected:
   - ToolSearch → schema loaded → tool_use (deferred tool loading)
   - command-message → Skill tool_use → skill prompt loaded (skill loading)
@@ -2782,28 +2787,58 @@ function clearProxyCaptures() {
   renderProxyDetail();
 }
 
+function downloadBlob(data, filename) {
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function showSaved(count) {
+  const btn = document.getElementById('exportBtn');
+  if (!btn) return;
+  btn.textContent = count > 1 ? `Saved ${count}!` : 'Saved!';
+  setTimeout(() => { btn.textContent = 'Save'; }, 1200);
+}
+
 async function exportCaptures() {
   if (!proxyCaptures.length) return;
-
   const ts = new Date().toISOString().slice(0, 10);
-  const defaultName = `claude-inspector-${ts}.json`;
-  const data = JSON.stringify(proxyCaptures, null, 2);
 
-  const showSaved = () => {
-    const btn = document.getElementById('exportBtn');
-    if (btn) { btn.textContent = 'Saved!'; setTimeout(() => { btn.textContent = 'Save'; }, 800); }
-  };
+  const sessionMap = {};
+  for (const c of proxyCaptures) {
+    const sid = c.sessionId || 'unknown';
+    if (!sessionMap[sid]) sessionMap[sid] = [];
+    sessionMap[sid].push(c);
+  }
+  const sessions = Object.entries(sessionMap);
 
-  if (window.electronAPI?.exportCaptures) {
-    const result = await window.electronAPI.exportCaptures({ data, defaultName });
-    if (!result.canceled) showSaved();
+  if (sessions.length === 1) {
+    const [sid, caps] = sessions[0];
+    const defaultName = `claude-inspector-${sid.slice(0, 6)}-${ts}.json`;
+    const data = JSON.stringify(caps, null, 2);
+    if (window.electronAPI?.exportCaptures) {
+      const result = await window.electronAPI.exportCaptures({ data, defaultName });
+      if (!result.canceled) showSaved(1);
+    } else {
+      downloadBlob(data, defaultName);
+      showSaved(1);
+    }
+    return;
+  }
+
+  const payload = sessions.map(([sid, caps], i) => ({
+    filename: `claude-inspector-session${i + 1}-${sid.slice(0, 6)}-${ts}.json`,
+    data: JSON.stringify(caps, null, 2)
+  }));
+
+  if (window.electronAPI?.exportCaptureSessions) {
+    const result = await window.electronAPI.exportCaptureSessions(payload);
+    if (!result.canceled) showSaved(result.count);
   } else {
-    const blob = new Blob([data], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = defaultName;
-    a.click();
-    showSaved();
+    for (const { filename, data } of payload) downloadBlob(data, filename);
+    showSaved(payload.length);
   }
 }
 

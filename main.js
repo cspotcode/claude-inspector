@@ -310,14 +310,17 @@ ipcMain.handle('capture-export', async (_event, { data, defaultName }) => {
   return { saved: true, filePath };
 });
 
-ipcMain.handle('capture-import', async () => {
+ipcMain.handle('capture-export-sessions', async (_event, sessions) => {
   const { filePaths, canceled } = await dialog.showOpenDialog({
-    filters: [{ name: 'JSON', extensions: ['json'] }],
-    properties: ['openFile']
+    title: '저장할 폴더 선택',
+    properties: ['openDirectory', 'createDirectory']
   });
   if (canceled || !filePaths.length) return { canceled: true };
-  const content = fs.readFileSync(filePaths[0], 'utf8');
-  return { data: content };
+  const dir = filePaths[0];
+  for (const { filename, data } of sessions) {
+    fs.writeFileSync(path.join(dir, filename), data, 'utf8');
+  }
+  return { saved: true, dir, count: sessions.length };
 });
 
 app.on('before-quit', () => { if (proxyServer) proxyServer.close(); });
