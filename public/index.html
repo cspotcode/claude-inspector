@@ -2020,7 +2020,7 @@ Rules:
 - Always reference specific Request #N numbers in brackets
 - HIGHLIGHT must be a single tool_use name (e.g., "ToolSearch", "mcp__context7__query-docs", "Skill") or "none"
 - When MCP or Skill mechanisms are involved, include a brief explanation of HOW the loading works
-- Use `response_tools` field to explain causality: "Response to Request #N returned [tool] → this enabled/triggered [action] in Request #M"
+- Use "response_tools" field to explain causality: "Response to Request #N returned [tool] → this enabled/triggered [action] in Request #M"
 - Each step description should answer: what happened in the request, what did the response return, and how did that response cause the next action
 - If sub-agent requests exist, clearly indicate they are sub-agent calls
 - Number steps sequentially (STEP 1, STEP 2, ...)
@@ -2043,7 +2043,7 @@ graph TD
 Rules for MERMAID:
 - Use graph TD (top-down)
 - Show the MECHANISM chain including responses: Request → Response → Next Request
-- Include response nodes to show causality using `response_tools` data:
+- Include response nodes to show causality using "response_tools" data:
   - ToolSearch (Req N) --> Response: schemas returned --> tool_use: mcp__x (Req N+1)
   - tool_use: X (Req N) --> Response: tool_result Y --> next action (Req N+1)
 - Include these patterns when detected:
