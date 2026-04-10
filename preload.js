@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiflowChat: (data) => ipcRenderer.invoke('aiflow-chat', data),
   onAiflowChatChunk: (cb) => ipcRenderer.on('aiflow-chat-chunk', (_, data) => cb(data)),
   offAiflowChatChunk: () => ipcRenderer.removeAllListeners('aiflow-chat-chunk'),
+  exportCaptures: (data) => ipcRenderer.invoke('capture-export', data),
+  importCaptures: () => ipcRenderer.invoke('capture-import'),
   offProxy: () => {
     ipcRenderer.removeAllListeners('proxy-request');
     ipcRenderer.removeAllListeners('proxy-response');

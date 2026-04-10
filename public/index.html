@@ -667,6 +667,8 @@
     </div>
     <div class="config-footer">
       <button class="btn btn-send" id="proxyStartBtn" style="flex:1;justify-content:center" onclick="toggleProxy()" data-i18n="proxy.startProxy">Start Proxy</button>
+      <button class="btn btn-copy" onclick="exportCaptures()" title="Export captures to JSON">Export</button>
+      <button class="btn btn-copy" onclick="importCaptures()" title="Import captures from JSON">Import</button>
       <button class="btn btn-copy" onclick="clearProxyCaptures()" data-i18n="proxy.clear">Clear</button>
     </div>
   </div>
@@ -2184,7 +2186,9 @@ function aiflowChatKeydown(e) {
 function buildAiFlowSystemContext() {
   if (!aiflowResult) return 'You are analyzing a Claude Code session.';
   const steps = aiflowResult.steps.map(s => `STEP ${s.num}: ${s.title}\n${s.body}`).join('\n\n');
-  return `You are a helpful assistant analyzing a Claude Code CLI session captured by an inspector tool.\n\nHere is the session analysis:\n\n${steps}\n\nSummary: ${aiflowResult.summary || ''}\n\nAnswer questions about this session concisely.`;
+  const captures = buildCaptureSummaries();
+  const capturesJson = JSON.stringify(captures, null, 1);
+  return `You are a helpful assistant analyzing a Claude Code CLI session captured by an inspector tool.\n\nHere is the session analysis:\n\n${steps}\n\nSummary: ${aiflowResult.summary || ''}\n\nRaw capture data for detailed questions:\n${capturesJson}\n\nAnswer questions about this session concisely.`;
 }
 
 async function sendAiFlowChat() {
@@ -2740,6 +2744,40 @@ function clearProxyCaptures() {
   _sessionColorMap = {};
   renderProxyList();
   renderProxyDetail();
+}
+
+async function exportCaptures() {
+  if (!proxyCaptures.length) return;
+  const now = new Date();
+  const ts = now.toISOString().slice(0, 16).replace('T', '-').replace(':', '');
+  const defaultName = `claude-inspector-${ts}.json`;
+  const data = JSON.stringify(proxyCaptures, null, 2);
+  if (window.electronAPI?.exportCaptures) {
+    await window.electronAPI.exportCaptures({ data, defaultName });
+  } else {
+    const blob = new Blob([data], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = defaultName;
+    a.click();
+  }
+}
+
+async function importCaptures() {
+  if (window.electronAPI?.importCaptures) {
+    const result = await window.electronAPI.importCaptures();
+    if (result.canceled) return;
+    try {
+      const imported = JSON.parse(result.data);
+      if (!Array.isArray(imported)) throw new Error('Invalid format');
+      proxyCaptures = imported;
+      selectedProxyId = null;
+      renderProxyList();
+      renderProxyDetail();
+    } catch (e) {
+      alert('Import failed: ' + e.message);
+    }
+  }
 }
 
 function copyProxyCmd() {

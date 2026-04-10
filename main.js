@@ -30,7 +30,7 @@ Sentry.init({
 
 const analytics = require('./analytics');
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const http = require('node:http');
 const https = require('node:https');
 
@@ -298,6 +298,26 @@ ipcMain.handle('aiflow-chat', (_event, { systemContext, messages }) => {
     });
     child.on('error', (err) => resolve({ success: false, error: err.message }));
   });
+});
+
+ipcMain.handle('capture-export', async (_event, { data, defaultName }) => {
+  const { filePath, canceled } = await dialog.showSaveDialog({
+    defaultPath: defaultName,
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  });
+  if (canceled || !filePath) return { canceled: true };
+  fs.writeFileSync(filePath, data, 'utf8');
+  return { saved: true, filePath };
+});
+
+ipcMain.handle('capture-import', async () => {
+  const { filePaths, canceled } = await dialog.showOpenDialog({
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+  if (canceled || !filePaths.length) return { canceled: true };
+  const content = fs.readFileSync(filePaths[0], 'utf8');
+  return { data: content };
 });
 
 app.on('before-quit', () => { if (proxyServer) proxyServer.close(); });

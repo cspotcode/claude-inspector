@@ -190,6 +190,45 @@ test('AI Flow 탭 클릭 → aiflow 컨텐츠 영역 표시', async () => {
   await expect(page.locator('.aiflow-status')).toBeVisible({ timeout: 5000 });
 });
 
+// ─── Export/Import ──────────────────────────────────────────────────────────
+
+test('Export/Import 버튼 존재 확인', async () => {
+  const buttons = page.locator('.config-footer .btn-copy');
+  const texts = await buttons.allInnerTexts();
+  expect(texts).toContain('Export');
+  expect(texts).toContain('Import');
+});
+
+test('importCaptures 함수 Array.isArray 검증 포함', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  expect(html).toContain('async function importCaptures()');
+  expect(html).toContain('Array.isArray(imported)');
+  expect(html).toContain("throw new Error('Invalid format')");
+});
+
+test('buildAiFlowSystemContext에 captures 원본 데이터 포함', async () => {
+  const result = await page.evaluate(() => {
+    // @ts-ignore
+    proxyCaptures = [{
+      id: 'test-1',
+      body: { model: 'claude-sonnet-4-6', messages: [] },
+      response: { body: { content: [], usage: { input_tokens: 100, output_tokens: 50 } } }
+    }];
+    // @ts-ignore
+    aiflowResult = {
+      steps: [{ num: 1, title: 'Test Step', body: 'test body content' }],
+      summary: 'test summary'
+    };
+    // @ts-ignore
+    aiflowSelectedIds = new Set();
+    // @ts-ignore
+    return buildAiFlowSystemContext();
+  });
+  expect(result).toContain('Raw capture data for detailed questions:');
+  expect(result).toContain('claude-sonnet-4-6');
+  expect(result).toContain('Test Step');
+});
+
 test('프록시 시작→정지 전체 사이클 정상 동작', async () => {
   const btn = page.locator('#proxyStartBtn');
   const portInput = page.locator('#proxyPort');
