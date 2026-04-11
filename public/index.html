@@ -1221,6 +1221,31 @@ function esc(s) {
 function escAttr(s) {
   return esc(s).replace(/"/g,'&quot;');
 }
+function markdownToHtml(md) {
+  if (!md) return '';
+  let s = md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Tables
+  s = s.replace(/^\|(.+)\|$/gm, (_, row) => {
+    if (/^[-\s|]+$/.test(row)) return '';
+    const cells = row.split('|').map(c => c.trim());
+    return '<tr>' + cells.map(c => `<td style="padding:3px 8px;border:1px solid var(--border)">${c}</td>`).join('') + '</tr>';
+  });
+  s = s.replace(/(<tr>[\s\S]*?<\/tr>)/g, '<table style="border-collapse:collapse;font-size:11px;margin:6px 0">$1</table>');
+  // Headers
+  s = s.replace(/^### (.+)$/gm, '<div style="font-size:12px;font-weight:600;color:var(--text);margin:8px 0 3px">$1</div>');
+  s = s.replace(/^## (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:var(--green);margin:10px 0 4px">$1</div>');
+  // HR
+  s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">');
+  // Bold + inline code
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/`([^`]+)`/g, '<code style="font-family:\'SF Mono\',monospace;font-size:10px;background:var(--hover);padding:1px 4px;border-radius:3px">$1</code>');
+  // Bullets
+  s = s.replace(/^[-*] (.+)$/gm, '<div style="margin:2px 0;padding-left:12px">• $1</div>');
+  // Spacing
+  s = s.replace(/\n\n+/g, '<div style="margin:4px 0"></div>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
 
 // ─── Proxy ────────────────────────────────────────────────────────────────
 let proxyCaptures = [];
@@ -2357,7 +2382,7 @@ function renderAiFlowResult(container) {
         })
         .join('\n');
       pre.textContent = sanitized;
-      mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#2d2d2d', primaryBorderColor: '#4ec9b0', lineColor: '#569cd6', textColor: '#d4d4d4' } });
+      mermaid.initialize({ startOnLoad: false, theme: 'dark' });
       mermaid.run({ querySelector: '.mermaid' }).catch(() => {
         // Fallback: show raw mermaid code if rendering fails
         pre.closest('.aiflow-mermaid').innerHTML =
@@ -2488,7 +2513,7 @@ function _optSectionInnerHTML() {
       <button class="copy-small" style="margin-left:4px" onclick="cancelOptimization()">${i18n.t('aiflow.cancelAnalysis')}</button>
     </div>${partialHtml}`;
   } else if (aiflowOptimization) {
-    return `<div class="aiflow-summary-text" style="white-space:pre-wrap">${esc(aiflowOptimization)}</div>
+    return `<div class="aiflow-summary-text" style="line-height:1.6;font-size:12px">${markdownToHtml(aiflowOptimization)}</div>
       <button class="copy-small" style="margin-top:8px" onclick="requestOptimization()" id="aiflowOptBtn">${i18n.t('aiflow.reanalyze')}</button>`;
   } else {
     return `<div style="color:var(--dim);font-size:12px;margin-bottom:8px">${i18n.t('aiflow.optimizationDesc')}</div>
