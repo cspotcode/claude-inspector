@@ -1278,8 +1278,8 @@ function markdownToHtml(md) {
 
   // Headers
   s = s.replace(/^### (.+)$/gm, '<div style="font-size:12px;font-weight:600;color:var(--text);margin:10px 0 3px">$1</div>');
-  s = s.replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--green);margin:14px 0 5px;border-bottom:1px solid var(--border);padding-bottom:3px">$1</div>');
-  s = s.replace(/^# (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--green);margin:14px 0 6px">$1</div>');
+  s = s.replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--text);margin:14px 0 5px;border-bottom:1px solid var(--border);padding-bottom:3px">$1</div>');
+  s = s.replace(/^# (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--text);margin:14px 0 6px">$1</div>');
   // HR
   s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">');
   // Bold + italic + inline code
@@ -2359,7 +2359,7 @@ function renderAiFlowResult(container) {
     ? (i18n.locale === 'ko' ? '자동분석 ON' : 'Auto ON')
     : (i18n.locale === 'ko' ? '자동분석 OFF' : 'Auto OFF');
   const _toggleColor = autoOptimize ? 'var(--blue)' : 'var(--dim)';
-  html += `<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14px;font-weight:700;color:var(--green)">${i18n.t('aiflow.summaryTitle')}</div><div style="display:flex;gap:6px;align-items:center"><button class="copy-small" onclick="toggleAutoOptimize()" style="font-size:10px;color:${_toggleColor};border-color:${_toggleColor}">${_toggleLabel}</button><button class="aiflow-btn aiflow-btn-secondary" style="padding:4px 12px;font-size:11px" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.reanalyze')}</button></div></div>`;
+  html += `<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14px;font-weight:700;color:var(--text)">${i18n.t('aiflow.summaryTitle')}</div><div style="display:flex;gap:6px;align-items:center"><button class="copy-small" onclick="toggleAutoOptimize()" style="font-size:10px;color:${_toggleColor};border-color:${_toggleColor}">${_toggleLabel}</button><button class="aiflow-btn aiflow-btn-secondary" style="padding:4px 12px;font-size:11px" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.reanalyze')}</button></div></div>`;
 
   for (const step of result.steps) {
     const isSub = step.body.toLowerCase().includes('sub-agent');
@@ -2381,20 +2381,20 @@ function renderAiFlowResult(container) {
 
   // Mermaid flowchart
   if (result.mermaid) {
-    html += `<div class="aiflow-step" style="border-color:rgba(78,201,176,.3)">
-      <div class="aiflow-step-header" style="background:rgba(78,201,176,.08)">
-        <div class="aiflow-step-num" style="background:var(--green)">⤵</div>
-        <div class="aiflow-step-title" style="color:var(--green)">${i18n.t('aiflow.flowChartTitle')}</div>
+    html += `<div class="aiflow-step">
+      <div class="aiflow-step-header">
+        <div class="aiflow-step-num">⤵</div>
+        <div class="aiflow-step-title">${i18n.t('aiflow.flowChartTitle')}</div>
       </div>
       <div class="aiflow-mermaid"><pre class="mermaid" id="aiflowMermaidPre"></pre></div>
     </div>`;
   }
 
   // Optimization 섹션
-  html += `<div class="aiflow-step" style="border-color:rgba(86,156,214,.3)">
-    <div class="aiflow-step-header" style="background:rgba(86,156,214,.08)">
-      <div class="aiflow-step-num" style="background:var(--blue)">⚡</div>
-      <div class="aiflow-step-title" style="color:var(--blue)">${i18n.t('aiflow.optimizationTitle')}</div>
+  html += `<div class="aiflow-step">
+    <div class="aiflow-step-header">
+      <div class="aiflow-step-num">⚡</div>
+      <div class="aiflow-step-title">${i18n.t('aiflow.optimizationTitle')}</div>
     </div>
     <div id="aiflowOptContent" style="padding:12px">`;
   html += _optSectionInnerHTML();
