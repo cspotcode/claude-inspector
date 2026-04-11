@@ -360,6 +360,16 @@ test('aiflow i18n 키 — optimizationDesc, flowChartTitle, chatHeader, chatPlac
   }
 });
 
+test('Optimization 섹션 부분 업데이트 구조 존재 (스크롤 고정)', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  // aiflowOptContent id — 부분 업데이트 대상 div
+  expect(html).toContain('id="aiflowOptContent"');
+  // _optSectionInnerHTML 헬퍼 — 부분 렌더 함수
+  expect(html).toContain('function _optSectionInnerHTML()');
+  // requestOptimization이 aiflowOptContent 직접 업데이트
+  expect(html).toContain("getElementById('aiflowOptContent')");
+});
+
 test('aiflowOptimizing 플래그가 index.html에 존재하고 true/false 전환됨', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
   expect(html).toContain('let aiflowOptimizing');

@@ -2267,7 +2267,7 @@ function renderAiFlowResult(container) {
       <div class="aiflow-step-num" style="background:var(--blue)">⚡</div>
       <div class="aiflow-step-title" style="color:var(--blue)">${i18n.t('aiflow.optimizationTitle')}</div>
     </div>
-    <div style="padding:12px">`;
+    <div id="aiflowOptContent" style="padding:12px">`;
   if (aiflowOptimizing) {
     html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
@@ -2420,9 +2420,29 @@ function renderChatBubbles(container, streaming = false) {
   container.scrollTop = container.scrollHeight;
 }
 
+function _optSectionInnerHTML() {
+  if (aiflowOptimizing) {
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
+      <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
+    </div>`;
+  } else if (aiflowOptimization) {
+    return `<div class="aiflow-summary-text" style="white-space:pre-wrap">${escapeHtml(aiflowOptimization)}</div>
+      <button class="copy-small" style="margin-top:8px" onclick="requestOptimization()" id="aiflowOptBtn">${i18n.t('aiflow.reanalyze')}</button>`;
+  } else {
+    return `<div style="color:var(--dim);font-size:12px;margin-bottom:8px">${i18n.t('aiflow.optimizationDesc')}</div>
+      <button class="copy-small" onclick="requestOptimization()" id="aiflowOptBtn">⚡ ${i18n.t('aiflow.optimizationTitle')}</button>`;
+  }
+}
+
 async function requestOptimization() {
   aiflowOptimizing = true;
-  renderAiFlowResult(document.getElementById('proxyDetailView'));
+  const optEl = document.getElementById('aiflowOptContent');
+  if (optEl) {
+    optEl.innerHTML = _optSectionInnerHTML();
+  } else {
+    renderAiFlowResult(document.getElementById('proxyDetailView'));
+  }
 
   const prompt = buildOptimizationPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
@@ -2433,7 +2453,12 @@ async function requestOptimization() {
   } else {
     aiflowOptimization = i18n.t('aiflow.analyzeFail', { error: result.error || 'unknown' });
   }
-  renderAiFlowResult(document.getElementById('proxyDetailView'));
+  const optEl2 = document.getElementById('aiflowOptContent');
+  if (optEl2) {
+    optEl2.innerHTML = _optSectionInnerHTML();
+  } else {
+    renderAiFlowResult(document.getElementById('proxyDetailView'));
+  }
 }
 
 function jumpToRequest(reqNum, toolName) {
