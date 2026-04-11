@@ -294,7 +294,7 @@ ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
   const { spawn } = require('child_process');
   return new Promise((resolve) => {
     // 프롬프트를 stdin으로 전달 — OS CLI 인자 크기 제한(~256KB) 우회
-    const child = spawn('claude', ['-p', '--model', 'sonnet', '--settings', claudeNoHooksSettings]);
+    const child = spawn('claude', ['-p', '--model', 'sonnet', '--settings', claudeNoHooksSettings], { cwd: os.tmpdir() });
     _aiflowAnalyzeChild = child;
     let stdout = '';
     let settled = false;
