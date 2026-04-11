@@ -1223,26 +1223,75 @@ function escAttr(s) {
 }
 function markdownToHtml(md) {
   if (!md) return '';
-  let s = md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  // Tables
-  s = s.replace(/^\|(.+)\|$/gm, (_, row) => {
-    if (/^[-\s|]+$/.test(row)) return '';
-    const cells = row.split('|').map(c => c.trim());
-    return '<tr>' + cells.map(c => `<td style="padding:3px 8px;border:1px solid var(--border)">${c}</td>`).join('') + '</tr>';
+
+  // Process line by line to correctly group table rows
+  const rawLines = md.split('\n');
+  const parts = [];
+  let tableRows = [];
+  let isFirstTableRow = true;
+
+  function flushTable() {
+    if (tableRows.length === 0) return;
+    parts.push('<table style="border-collapse:collapse;font-size:11px;margin:8px 0;width:100%">' + tableRows.join('') + '</table>');
+    tableRows = [];
+    isFirstTableRow = true;
+  }
+
+  for (const line of rawLines) {
+    const tableMatch = line.match(/^\|(.+)\|$/);
+    if (tableMatch) {
+      const row = tableMatch[1];
+      if (/^[-\s|:]+$/.test(row)) continue; // separator row — skip
+      const cells = row.split('|').map(c => c.trim());
+      if (isFirstTableRow) {
+        // Header row
+        tableRows.push('<tr>' + cells.map(c => `<th style="padding:4px 10px;border:1px solid var(--border);background:var(--hover);font-weight:600;text-align:left">${esc(c)}</th>`).join('') + '</tr>');
+        isFirstTableRow = false;
+      } else {
+        tableRows.push('<tr>' + cells.map(c => `<td style="padding:3px 10px;border:1px solid var(--border)">${esc(c)}</td>`).join('') + '</tr>');
+      }
+    } else {
+      flushTable();
+      parts.push(line);
+    }
+  }
+  flushTable();
+
+  let s = parts.join('\n');
+
+  // Escape HTML in non-table text
+  s = s.replace(/(?<!<[^>]*)&(?![^<>]*>)/g, (m, offset) => {
+    // Simple approach: escape & < > outside of already-injected HTML table tags
+    return m;
   });
-  s = s.replace(/(<tr>[\s\S]*?<\/tr>)/g, '<table style="border-collapse:collapse;font-size:11px;margin:6px 0">$1</table>');
+
+  // Re-escape the non-table text portions (headers, bullets, etc.)
+  // Split on table HTML, escape text parts, rejoin
+  const tablePlaceholders = [];
+  s = s.replace(/<table[\s\S]*?<\/table>/g, (m) => {
+    tablePlaceholders.push(m);
+    return `\x00TABLE${tablePlaceholders.length - 1}\x00`;
+  });
+  s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Restore tables
+  s = s.replace(/\x00TABLE(\d+)\x00/g, (_, i) => tablePlaceholders[+i]);
+
   // Headers
-  s = s.replace(/^### (.+)$/gm, '<div style="font-size:12px;font-weight:600;color:var(--text);margin:8px 0 3px">$1</div>');
-  s = s.replace(/^## (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:var(--green);margin:10px 0 4px">$1</div>');
+  s = s.replace(/^### (.+)$/gm, '<div style="font-size:12px;font-weight:600;color:var(--text);margin:10px 0 3px">$1</div>');
+  s = s.replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--green);margin:14px 0 5px;border-bottom:1px solid var(--border);padding-bottom:3px">$1</div>');
+  s = s.replace(/^# (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--green);margin:14px 0 6px">$1</div>');
   // HR
-  s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">');
-  // Bold + inline code
+  s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">');
+  // Bold + italic + inline code
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
   s = s.replace(/`([^`]+)`/g, '<code style="font-family:\'SF Mono\',monospace;font-size:10px;background:var(--hover);padding:1px 4px;border-radius:3px">$1</code>');
+  // Numbered lists
+  s = s.replace(/^\d+\. (.+)$/gm, '<div style="margin:3px 0;padding-left:16px;display:flex;gap:6px"><span style="color:var(--dim);min-width:16px">•</span><span>$1</span></div>');
   // Bullets
-  s = s.replace(/^[-*] (.+)$/gm, '<div style="margin:2px 0;padding-left:12px">• $1</div>');
+  s = s.replace(/^[-*] (.+)$/gm, '<div style="margin:3px 0;padding-left:16px;display:flex;gap:6px"><span style="color:var(--dim)">•</span><span>$1</span></div>');
   // Spacing
-  s = s.replace(/\n\n+/g, '<div style="margin:4px 0"></div>');
+  s = s.replace(/\n\n+/g, '<div style="margin:6px 0"></div>');
   s = s.replace(/\n/g, '<br>');
   return s;
 }
