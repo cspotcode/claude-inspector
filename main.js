@@ -288,22 +288,42 @@ ipcMain.handle('proxy-stop', () => {
 });
 
 // ─── AI Flow: claude -p ─────────────────────────────────────────────────
+let _aiflowAnalyzeChild = null;
+
 ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
   const { spawn } = require('child_process');
   return new Promise((resolve) => {
-    const child = spawn('claude', ['-p', '--model', 'sonnet', '--settings', claudeNoHooksSettings, prompt]);
+    // 프롬프트를 stdin으로 전달 — OS CLI 인자 크기 제한(~256KB) 우회
+    const child = spawn('claude', ['-p', '--model', 'sonnet', '--settings', claudeNoHooksSettings]);
+    _aiflowAnalyzeChild = child;
     let stdout = '';
+    let settled = false;
+    const done = (result) => {
+      if (settled) return;
+      settled = true;
+      _aiflowAnalyzeChild = null;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => { child.kill(); done({ success: false, error: 'timeout' }); }, 5 * 60_000);
+    child.stdin.write(prompt);
+    child.stdin.end();
     child.stdout.on('data', (chunk) => {
       stdout += chunk.toString();
       if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('aiflow-progress', stdout);
     });
     child.stderr.on('data', () => {});
     child.on('close', (code) => {
-      if (code !== 0 && !stdout) resolve({ success: false, error: `Exit code ${code}` });
-      else resolve({ success: true, response: stdout });
+      if (code !== 0 && !stdout) done({ success: false, error: `Exit code ${code}` });
+      else done({ success: true, response: stdout });
     });
-    child.on('error', (err) => resolve({ success: false, error: err.message }));
+    child.on('error', (err) => done({ success: false, error: err.message }));
   });
+});
+
+ipcMain.handle('aiflow-analyze-cancel', () => {
+  if (_aiflowAnalyzeChild) { _aiflowAnalyzeChild.kill(); _aiflowAnalyzeChild = null; }
+  return { cancelled: true };
 });
 
 ipcMain.handle('aiflow-chat', (_event, { systemContext, messages }) => {

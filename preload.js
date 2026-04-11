@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onProxyRequest: (cb) => ipcRenderer.on('proxy-request', (_, data) => cb(data)),
   onProxyResponse: (cb) => ipcRenderer.on('proxy-response', (_, data) => cb(data)),
   aiflowAnalyze: (data) => ipcRenderer.invoke('aiflow-analyze', data),
+  aiflowAnalyzeCancel: () => ipcRenderer.invoke('aiflow-analyze-cancel'),
   onAiflowProgress: (cb) => ipcRenderer.on('aiflow-progress', (_, data) => cb(data)),
   offAiflowProgress: () => ipcRenderer.removeAllListeners('aiflow-progress'),
   aiflowChat: (data) => ipcRenderer.invoke('aiflow-chat', data),

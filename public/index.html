@@ -2157,22 +2157,61 @@ Data:
 ${JSON.stringify(captures, null, 1)}`;
 }
 
+function buildOptimizationData() {
+  const rawSelected = aiflowSelectedIds.size > 0
+    ? proxyCaptures.filter(e => aiflowSelectedIds.has(e.id))
+    : [...proxyCaptures];
+  const selected = rawSelected.slice().reverse();
+
+  let injections = [];
+  const tokenStats = [];
+  let foundInjections = false;
+
+  for (const entry of selected) {
+    if (!foundInjections) {
+      const det = detectMechanisms(entry.body);
+      if (det.claudeMd) {
+        foundInjections = true;
+        const sections = parseClaudeMdSections(det.claudeMd);
+        injections = sections.map(s => ({ file: s.label, chars: s.content.length, content: s.content }));
+      }
+    }
+    const usage = entry.response?.body?.usage;
+    if (usage) {
+      tokenStats.push({
+        input: usage.input_tokens || 0,
+        output: usage.output_tokens || 0,
+        cache_read: usage.cache_read_input_tokens || 0,
+      });
+    }
+  }
+
+  return {
+    request_count: selected.length,
+    prompt_injections: injections,
+    token_summary: {
+      total_input: tokenStats.reduce((s, t) => s + t.input, 0),
+      total_output: tokenStats.reduce((s, t) => s + t.output, 0),
+      requests: tokenStats.length,
+    },
+  };
+}
+
 function buildOptimizationPrompt() {
   const lang = i18n.locale === 'ko' ? 'Korean' : 'English';
-  const captures = buildCaptureSummaries();
-  return `Analyze this Claude Code session data and provide optimization advice in ${lang}.
+  const data = buildOptimizationData();
+  return `Analyze this Claude Code session and provide optimization advice in ${lang}.
 
 Focus ONLY on things the user can control and fix:
-- prompt_injections: which files are injected via system-reminder? Report each file name and size (chars). Flag anything over 2000 chars as potentially bloated.
-- Specific trimming advice: which sections are redundant, verbose, or rarely triggered? Give concrete examples.
-- rules files: are any rules duplicated across multiple files?
+- prompt_injections.content: read the actual file contents and identify redundant/verbose/rarely-triggered sections. Give specific line-level examples.
+- Flag any injection over 2000 chars as potentially bloated.
+- Check if rules are duplicated across multiple files.
 - If everything looks lean already, say so briefly.
 
-Do NOT mention cache efficiency — it is controlled by Claude Code internally and not actionable by the user.
-Be concise. Use bullet points. Give specific file names and sizes.
+Do NOT mention cache efficiency. Be concise. Use bullet points. Give specific file names and sizes.
 
 Data:
-${JSON.stringify(captures, null, 1)}`;
+${JSON.stringify(data, null, 1)}`;
 }
 
 function parseAiFlowResponse(text) {
@@ -2420,11 +2459,20 @@ function renderChatBubbles(container, streaming = false) {
   container.scrollTop = container.scrollHeight;
 }
 
+async function cancelOptimization() {
+  if (window._cancelCurrentOptimization) window._cancelCurrentOptimization();
+  aiflowOptimizing = false;
+  if (window.electronAPI?.aiflowAnalyzeCancel) await window.electronAPI.aiflowAnalyzeCancel();
+  const el = document.getElementById('aiflowOptContent');
+  if (el) el.innerHTML = _optSectionInnerHTML();
+}
+
 function _optSectionInnerHTML() {
   if (aiflowOptimizing) {
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
       <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
+      <button class="copy-small" style="margin-left:4px" onclick="cancelOptimization()">${i18n.t('aiflow.cancelAnalysis')}</button>
     </div>`;
   } else if (aiflowOptimization) {
     return `<div class="aiflow-summary-text" style="white-space:pre-wrap">${escapeHtml(aiflowOptimization)}</div>
@@ -2437,6 +2485,9 @@ function _optSectionInnerHTML() {
 
 async function requestOptimization() {
   aiflowOptimizing = true;
+  let _cancelled = false;
+  window._cancelCurrentOptimization = () => { _cancelled = true; };
+
   const optEl = document.getElementById('aiflowOptContent');
   if (optEl) {
     optEl.innerHTML = _optSectionInnerHTML();
@@ -2446,13 +2497,15 @@ async function requestOptimization() {
 
   const prompt = buildOptimizationPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
-  aiflowOptimizing = false;
+  if (_cancelled) return;
 
+  aiflowOptimizing = false;
   if (result.success) {
     aiflowOptimization = result.response;
-  } else {
+  } else if (result.error !== 'timeout') {
     aiflowOptimization = i18n.t('aiflow.analyzeFail', { error: result.error || 'unknown' });
   }
+
   const optEl2 = document.getElementById('aiflowOptContent');
   if (optEl2) {
     optEl2.innerHTML = _optSectionInnerHTML();
