@@ -766,6 +766,10 @@ const LOCALES = {
       tips: [
         '/compact — 컨텍스트를 압축해 토큰을 절약할 수 있어요',
         '! prefix로 셸 명령을 Claude 컨텍스트 소비 없이 실행할 수 있어요',
+        '/clear — 컨텍스트를 초기화하고 새 세션처럼 시작할 수 있어요',
+        'Escape 키로 Claude 응답을 즉시 중단할 수 있어요',
+        'CLAUDE.md에 자주 쓰는 규칙을 적어두면 매 세션에 자동 적용됩니다',
+        '# 파일명으로 특정 파일을 컨텍스트에 고정할 수 있습니다',
       ],
     },
     analysis: {
@@ -910,6 +914,10 @@ const LOCALES = {
       tips: [
         '/compact — compress context to save tokens',
         '! prefix runs shell commands without consuming Claude context',
+        '/clear — reset context and start fresh like a new session',
+        'Press Escape to immediately stop Claude\'s response',
+        'Rules in CLAUDE.md are applied automatically every session',
+        '# filename pins specific files into context',
       ],
     },
     analysis: {
@@ -1874,7 +1882,7 @@ function renderAiFlow(container) {
 async function fetchTips() {
   try {
     const res = await fetch(
-      'https://raw.githubusercontent.com/kangraemin/claudeInspector/main/public/tips.json',
+      'https://raw.githubusercontent.com/kangraemin/claude-inspector/main/public/tips.json',
       { signal: AbortSignal.timeout(5000) }
     );
     if (!res.ok) return;
