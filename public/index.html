@@ -1233,6 +1233,7 @@ let aiflowSelectedIds = new Set();
 let aiflowOptimization = null;
 let aiflowOptimizing = false;
 let cachedTips = null;
+let autoOptimize = localStorage.getItem('ci-auto-optimize') !== 'false'; // 기본 ON
 let aiflowCancelled = false;
 let aiflowTipsTimer = null;
 let proxyDetailSearch = '';
@@ -1965,6 +1966,10 @@ async function startAiFlowAnalysis() {
     aiflowError = i18n.t('aiflow.analyzeFail', { error: result.error || 'unknown' });
   }
   renderAiFlow(container);
+  // 자동 optimization
+  if (aiflowState === 'done' && autoOptimize) {
+    requestOptimization();
+  }
 }
 
 function buildCaptureSummaries() {
@@ -2269,7 +2274,11 @@ function renderAiFlowResult(container) {
   if (!result) return;
 
   let html = '<div class="aiflow-container">';
-  html += `<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14px;font-weight:700;color:var(--green)">${i18n.t('aiflow.summaryTitle')}</div><button class="aiflow-btn aiflow-btn-secondary" style="padding:4px 12px;font-size:11px" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.reanalyze')}</button></div>`;
+  const _toggleLabel = autoOptimize
+    ? (i18n.locale === 'ko' ? '자동분석 ON' : 'Auto ON')
+    : (i18n.locale === 'ko' ? '자동분석 OFF' : 'Auto OFF');
+  const _toggleColor = autoOptimize ? 'var(--blue)' : 'var(--dim)';
+  html += `<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14px;font-weight:700;color:var(--green)">${i18n.t('aiflow.summaryTitle')}</div><div style="display:flex;gap:6px;align-items:center"><button class="copy-small" onclick="toggleAutoOptimize()" style="font-size:10px;color:${_toggleColor};border-color:${_toggleColor}">${_toggleLabel}</button><button class="aiflow-btn aiflow-btn-secondary" style="padding:4px 12px;font-size:11px" onclick="startAiFlowAnalysis()">${i18n.t('aiflow.reanalyze')}</button></div></div>`;
 
   for (const step of result.steps) {
     const isSub = step.body.toLowerCase().includes('sub-agent');
@@ -2307,18 +2316,7 @@ function renderAiFlowResult(container) {
       <div class="aiflow-step-title" style="color:var(--blue)">${i18n.t('aiflow.optimizationTitle')}</div>
     </div>
     <div id="aiflowOptContent" style="padding:12px">`;
-  if (aiflowOptimizing) {
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-      <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
-      <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
-    </div>`;
-  } else if (aiflowOptimization) {
-    html += `<div class="aiflow-summary-text" style="white-space:pre-wrap">${escapeHtml(aiflowOptimization)}</div>
-      <button class="copy-small" style="margin-top:8px" onclick="requestOptimization()" id="aiflowOptBtn">${i18n.t('aiflow.reanalyze')}</button>`;
-  } else {
-    html += `<div style="color:var(--dim);font-size:12px;margin-bottom:8px">${i18n.t('aiflow.optimizationDesc')}</div>
-      <button class="copy-small" onclick="requestOptimization()" id="aiflowOptBtn">⚡ ${i18n.t('aiflow.optimizationTitle')}</button>`;
-  }
+  html += _optSectionInnerHTML();
   html += `</div></div>`;
 
   // Chat UI
@@ -2467,6 +2465,15 @@ async function cancelOptimization() {
   if (el) el.innerHTML = _optSectionInnerHTML();
 }
 
+function toggleAutoOptimize() {
+  autoOptimize = !autoOptimize;
+  localStorage.setItem('ci-auto-optimize', autoOptimize ? 'true' : 'false');
+  renderAiFlowResult(document.getElementById('proxyDetailView'));
+  if (autoOptimize && !aiflowOptimizing && !aiflowOptimization) {
+    requestOptimization();
+  }
+}
+
 function _optSectionInnerHTML() {
   if (aiflowOptimizing) {
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
@@ -2495,8 +2502,22 @@ async function requestOptimization() {
     renderAiFlowResult(document.getElementById('proxyDetailView'));
   }
 
+  // 스트리밍 진행상황 표시
+  window.electronAPI.onAiflowProgress((partial) => {
+    const el = document.getElementById('aiflowOptContent');
+    if (el && aiflowOptimizing) {
+      el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
+        <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
+        <button class="copy-small" style="margin-left:4px" onclick="cancelOptimization()">${i18n.t('aiflow.cancelAnalysis')}</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px;white-space:pre-wrap;max-height:120px;overflow:auto;opacity:0.7">${escapeHtml(partial.slice(-600))}</div>`;
+    }
+  });
+
   const prompt = buildOptimizationPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
+  window.electronAPI.offAiflowProgress();
   if (_cancelled) return;
 
   aiflowOptimizing = false;
