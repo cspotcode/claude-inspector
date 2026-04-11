@@ -2459,6 +2459,7 @@ function renderChatBubbles(container, streaming = false) {
 
 async function cancelOptimization() {
   if (window._cancelCurrentOptimization) window._cancelCurrentOptimization();
+  if (window._optTimerHandle) { clearInterval(window._optTimerHandle); window._optTimerHandle = null; }
   aiflowOptimizing = false;
   if (window.electronAPI?.aiflowAnalyzeCancel) await window.electronAPI.aiflowAnalyzeCancel();
   const el = document.getElementById('aiflowOptContent');
@@ -2479,6 +2480,7 @@ function _optSectionInnerHTML() {
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
       <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
+      <span style="font-size:11px;color:var(--dim);font-family:'SF Mono',monospace" id="optElapsed"></span>
       <button class="copy-small" style="margin-left:4px" onclick="cancelOptimization()">${i18n.t('aiflow.cancelAnalysis')}</button>
     </div>`;
   } else if (aiflowOptimization) {
@@ -2502,28 +2504,36 @@ async function requestOptimization() {
     renderAiFlowResult(document.getElementById('proxyDetailView'));
   }
 
-  // 스트리밍 진행상황 표시
+  // 경과 시간 타이머 (claude -p는 스트리밍 없이 완료 시 한 번에 출력 — 타이머로 진행 표시)
+  const optStart = Date.now();
+  const optTimer = setInterval(() => {
+    const el = document.getElementById('optElapsed');
+    if (el) el.textContent = `${Math.floor((Date.now() - optStart) / 1000)}s`;
+  }, 1000);
+  window._optTimerHandle = optTimer;
+
   window.electronAPI.onAiflowProgress((partial) => {
     const el = document.getElementById('aiflowOptContent');
     if (el && aiflowOptimizing) {
       el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
         <div class="aiflow-spinner" style="width:16px;height:16px;border-width:2px"></div>
         <span style="font-size:12px;color:var(--dim)">${i18n.t('aiflow.analyzing')}</span>
+        <span style="font-size:11px;color:var(--dim);font-family:'SF Mono',monospace" id="optElapsed">${Math.floor((Date.now() - optStart) / 1000)}s</span>
         <button class="copy-small" style="margin-left:4px" onclick="cancelOptimization()">${i18n.t('aiflow.cancelAnalysis')}</button>
-      </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px;white-space:pre-wrap;max-height:120px;overflow:auto;opacity:0.7">${escapeHtml(partial.slice(-600))}</div>`;
+      </div>`;
     }
   });
 
   const prompt = buildOptimizationPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
+  clearInterval(optTimer);
   window.electronAPI.offAiflowProgress();
   if (_cancelled) return;
 
   aiflowOptimizing = false;
   if (result.success) {
     aiflowOptimization = result.response;
-  } else if (result.error !== 'timeout') {
+  } else {
     aiflowOptimization = i18n.t('aiflow.analyzeFail', { error: result.error || 'unknown' });
   }
 
