@@ -1966,8 +1966,8 @@ async function startAiFlowAnalysis() {
     aiflowError = i18n.t('aiflow.analyzeFail', { error: result.error || 'unknown' });
   }
   renderAiFlow(container);
-  // 자동 optimization
-  if (aiflowState === 'done' && autoOptimize) {
+  // 자동 optimization (이미 실행 중이면 중복 호출 방지)
+  if (aiflowState === 'done' && autoOptimize && !aiflowOptimizing) {
     requestOptimization();
   }
 }
@@ -2493,6 +2493,7 @@ function _optSectionInnerHTML() {
 }
 
 async function requestOptimization() {
+  if (aiflowOptimizing) return;
   aiflowOptimizing = true;
   let _cancelled = false;
   window._cancelCurrentOptimization = () => { _cancelled = true; };
@@ -2512,6 +2513,7 @@ async function requestOptimization() {
   }, 1000);
   window._optTimerHandle = optTimer;
 
+  window.electronAPI.offAiflowProgress();
   window.electronAPI.onAiflowProgress((partial) => {
     const el = document.getElementById('aiflowOptContent');
     if (el && aiflowOptimizing) {
@@ -2527,6 +2529,7 @@ async function requestOptimization() {
   const prompt = buildOptimizationPrompt();
   const result = await window.electronAPI.aiflowAnalyze({ prompt });
   clearInterval(optTimer);
+  window._optTimerHandle = null;
   window.electronAPI.offAiflowProgress();
   if (_cancelled) return;
 

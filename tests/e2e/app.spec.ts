@@ -376,3 +376,30 @@ test('aiflowOptimizing 플래그가 index.html에 존재하고 true/false 전환
   expect(html).toContain('aiflowOptimizing = true');
   expect(html).toContain('aiflowOptimizing = false');
 });
+
+// ─── Optimization 타이머 동결 버그 수정 ─────────────────────────────────────
+
+test('requestOptimization — aiflowOptimizing 재진입 방지 가드 존재', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  const fnIdx = html.indexOf('async function requestOptimization()');
+  const guardIdx = html.indexOf('if (aiflowOptimizing) return;', fnIdx);
+  expect(fnIdx).toBeGreaterThan(-1);
+  expect(guardIdx).toBeGreaterThan(-1);
+  // 가드가 함수 상단 100자 이내에 있어야 함
+  expect(guardIdx - fnIdx).toBeLessThan(100);
+});
+
+test('requestOptimization — offAiflowProgress를 onAiflowProgress 등록 전에 호출', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  const fnIdx = html.indexOf('async function requestOptimization()');
+  const offIdx = html.indexOf('offAiflowProgress()', fnIdx);
+  const onIdx  = html.indexOf('onAiflowProgress(',   fnIdx);
+  expect(offIdx).toBeGreaterThan(-1);
+  expect(onIdx).toBeGreaterThan(-1);
+  expect(offIdx).toBeLessThan(onIdx); // off가 on보다 먼저
+});
+
+test('renderAiFlow 자동 optimization — aiflowOptimizing 중복 호출 방지 가드', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  expect(html).toContain('autoOptimize && !aiflowOptimizing');
+});
