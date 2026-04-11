@@ -336,3 +336,33 @@ test('프록시 시작→정지 전체 사이클 정상 동작', async () => {
   await btn.click();
   await expect(btn).not.toBeDisabled({ timeout: 5000 });
 });
+
+// ─── AI Flow 팁 / i18n / Optimization ───────────────────────────────────────
+
+test('tips.json 파일이 유효한 JSON이고 ko/en 배열을 포함함', () => {
+  const tips = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/tips.json'), 'utf8'));
+  expect(Array.isArray(tips.ko)).toBe(true);
+  expect(Array.isArray(tips.en)).toBe(true);
+  expect(tips.ko.length).toBeGreaterThan(0);
+  expect(tips.en.length).toBeGreaterThan(0);
+});
+
+test('fetchTips 함수와 cachedTips 변수가 index.html에 존재', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  expect(html).toContain('async function fetchTips()');
+  expect(html).toContain('cachedTips');
+});
+
+test('aiflow i18n 키 — optimizationDesc, flowChartTitle, chatHeader, chatPlaceholder, chatSend 존재', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  for (const key of ['optimizationDesc', 'flowChartTitle', 'chatHeader', 'chatPlaceholder', 'chatSend']) {
+    expect(html).toContain(key);
+  }
+});
+
+test('aiflowOptimizing 플래그가 index.html에 존재하고 true/false 전환됨', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/index.html'), 'utf8');
+  expect(html).toContain('let aiflowOptimizing');
+  expect(html).toContain('aiflowOptimizing = true');
+  expect(html).toContain('aiflowOptimizing = false');
+});
