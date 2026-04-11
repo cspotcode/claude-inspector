@@ -1883,19 +1883,33 @@ async function fetchTips() {
 }
 
 function startAiFlowTips() {
-  const tips = (cachedTips && cachedTips[i18n.locale]) || i18n.t('aiflow.tips');
-  if (!Array.isArray(tips) || tips.length === 0) return;
-  let idx = Math.floor(Math.random() * tips.length);
+  const raw = (cachedTips && cachedTips[i18n.locale]) || i18n.t('aiflow.tips');
+  if (!Array.isArray(raw) || raw.length === 0) return;
+  // Fisher-Yates shuffle → 중복 없는 순환
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  let shuffled = shuffle(raw);
+  let idx = 0;
   const el = document.getElementById('aiflowTip');
-  if (el) el.textContent = tips[idx];
+  if (el) el.textContent = shuffled[idx];
   clearInterval(aiflowTipsTimer);
   aiflowTipsTimer = setInterval(() => {
     const tipEl = document.getElementById('aiflowTip');
     if (!tipEl) { clearInterval(aiflowTipsTimer); return; }
     tipEl.style.opacity = '0';
     setTimeout(() => {
-      idx = (idx + 1) % tips.length;
-      tipEl.textContent = tips[idx];
+      idx++;
+      if (idx >= shuffled.length) {
+        shuffled = shuffle(raw);
+        idx = 0;
+      }
+      tipEl.textContent = shuffled[idx];
       tipEl.style.opacity = '0.65';
     }, 400);
   }, 10000);
@@ -2273,8 +2287,10 @@ function renderAiFlowResult(container) {
   </div>`;
 
   html += '</div>';
+  const savedScroll = container.scrollTop;
   container.style.cssText = 'flex:1;overflow-y:auto;display:block';
   container.innerHTML = html;
+  container.scrollTop = savedScroll;
 
   // Render mermaid — set textContent (not innerHTML) to avoid HTML escaping issues
   if (result.mermaid && typeof mermaid !== 'undefined') {

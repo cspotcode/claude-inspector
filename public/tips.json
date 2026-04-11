@@ -9,7 +9,17 @@
     "Stop hook으로 대화 종료 시 워크로그, 커밋 등을 자동화할 수 있어요",
     "Sub-Agent는 메인 컨텍스트와 분리된 독립 세션으로 실행됩니다",
     "CLAUDE.md를 간결하게 유지하면 매 요청마다 토큰이 절약됩니다",
-    "캐시 히트율이 높을수록 API 비용이 크게 줄어듭니다"
+    "캐시 히트율이 높을수록 API 비용이 크게 줄어듭니다",
+    "Escape 키로 Claude 응답을 즉시 중단할 수 있어요",
+    "프롬프트에 @파일명을 입력하면 해당 파일이 컨텍스트에 추가됩니다",
+    "/help — 모든 슬래시 커맨드 목록을 볼 수 있어요",
+    "/init — 현재 프로젝트에 맞는 CLAUDE.md를 자동 생성합니다",
+    "스크린샷을 드래그&드롭하면 Claude가 이미지로 인식합니다",
+    "한 번의 요청에서 여러 파일을 동시에 수정할 수 있어요",
+    "Claude는 터미널 명령 오류를 자동으로 읽고 다음 시도에 반영합니다",
+    "hooks(PreToolUse/PostToolUse)로 tool 호출 전후 자동화가 가능해요",
+    "git 히스토리를 읽어 커밋 컨텍스트를 파악하도록 요청할 수 있어요",
+    "CLAUDE.md에 자주 쓰는 규칙을 적어두면 매 세션에 자동 적용됩니다"
   ],
   "en": [
     "/compact — compress context when the conversation gets long, saving tokens",
@@ -21,6 +31,16 @@
     "Stop hooks let you automate worklog, commit, etc. when a session ends",
     "Sub-Agents run as isolated sessions, separate from the main context",
     "Keeping CLAUDE.md concise saves tokens on every request",
-    "Higher cache hit rates significantly reduce API costs"
+    "Higher cache hit rates significantly reduce API costs",
+    "Press Escape to immediately stop Claude's response",
+    "Type @filename in your prompt to add that file to context",
+    "/help — view all available slash commands",
+    "/init — auto-generate a CLAUDE.md tailored to your project",
+    "Drag & drop a screenshot and Claude reads it as an image",
+    "Claude can edit multiple files simultaneously in one request",
+    "Claude automatically reads terminal errors and adjusts on retry",
+    "hooks (PreToolUse/PostToolUse) let you automate around tool calls",
+    "Ask Claude to read git history for commit context before editing",
+    "Rules in CLAUDE.md are applied automatically every session"
   ]
 }
