@@ -2225,7 +2225,7 @@ Rules for MERMAID:
 - Every chain must follow this 3-step pattern: [Claude calls tool] --> (Response: what came back) --> {Claude decides: why next action} --> [Claude calls next tool]
 - The decision node {} is mandatory: it explains WHY Claude took the next action based on what the response returned. Without this node, causality is missing.
 - Example chain:
-    A["resolve-library-id\n(Req 4)"] --> B("Response: library ID returned")
+    A["resolve-library-id<br/>(Req 4)"] --> B("Response: library ID returned")
     B --> C{"Claude: has ID, needs docs"}
     C --> D["query-docs\n(Req 5)"]
 - Include these patterns when detected:
@@ -2234,10 +2234,12 @@ Rules for MERMAID:
   - Agent/Task tool_use → sub-agent spawned → sub-agent result (sub-agent flow)
   - system-reminder injection (CLAUDE.md loading)
 - Use descriptive node labels like "ToolSearch: fetch mcp schema" not "Req 1"
-- Add Request numbers as annotations: e.g., A["ToolSearch: fetch schema\n(Req 1)"]
+- Add Request numbers as annotations: e.g., A["ToolSearch: fetch schema<br/>(Req 1)"]
 - Do NOT use # character in labels
 - Keep labels under 50 characters
 - Use different node shapes: [] for Claude actions, () for responses/results, {} for Claude decisions
+- CRITICAL: bracket pairs must match — ["..."] or ("...") or {"..."} — never mix open/close types like ("..."]
+- Use <br/> for line breaks inside node labels, never actual newlines or \n
 
 Data:
 ${JSON.stringify(captures, null, 1)}`;
