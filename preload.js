@@ -26,4 +26,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateProgress: (cb) => ipcRenderer.on('update-progress', (_, data) => cb(data)),
   onUpdateDownloaded: (cb) => ipcRenderer.on('update-downloaded', (_, data) => cb(data)),
   installUpdate: () => ipcRenderer.invoke('update-install'),
+  trackEvent: (name, params) => ipcRenderer.send('analytics-track', name, params),
 });

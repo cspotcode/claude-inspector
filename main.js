@@ -139,8 +139,11 @@ function createWindow() {
   });
 }
 
+let _appOpenTime = null;
+
 app.whenReady().then(() => {
   analytics.init(app.getPath('userData'));
+  _appOpenTime = Date.now();
   analytics.trackEvent('app_open');
   if (process.platform === 'darwin') {
     app.dock.setIcon(path.join(__dirname, 'assets/icon.png'));
@@ -212,6 +215,10 @@ ipcMain.handle('proxy-start', (_event, port = 9090) => {
           isApiKey: !!(req.headers['x-api-key']),
           sessionId,
         };
+        analytics.trackEvent('proxy_request_captured', {
+          model: bodyObj?.model || 'unknown',
+          stream: !!(bodyObj?.stream),
+        });
         if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('proxy-request', reqData);
 
         const headers = Object.assign({}, req.headers, { host: 'api.anthropic.com' });
@@ -282,6 +289,7 @@ ipcMain.handle('proxy-stop', () => {
   if (!proxyServer) return { stopped: true };
   const srv = proxyServer;
   proxyServer = null;
+  analytics.trackEvent('proxy_stopped');
   return new Promise((resolve) => {
     srv.close(() => { resolve({ stopped: true }); });
   });
@@ -292,6 +300,8 @@ let _aiflowAnalyzeChild = null;
 
 ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
   const { spawn } = require('child_process');
+  analytics.trackEvent('aiflow_analyze_started');
+  const _analyzeStart = Date.now();
   return new Promise((resolve) => {
     // 프롬프트를 stdin으로 전달 — OS CLI 인자 크기 제한(~256KB) 우회
     const child = spawn('claude', ['-p', '--model', 'sonnet', '--settings', claudeNoHooksSettings], { cwd: os.tmpdir() });
@@ -303,6 +313,11 @@ ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
       settled = true;
       _aiflowAnalyzeChild = null;
       clearTimeout(timer);
+      analytics.trackEvent('aiflow_analyze_done', {
+        success: result.success ? 1 : 0,
+        duration_sec: Math.round((Date.now() - _analyzeStart) / 1000),
+        error: result.error || '',
+      });
       resolve(result);
     };
     const timer = setTimeout(() => { child.kill(); done({ success: false, error: 'timeout' }); }, 5 * 60_000);
@@ -327,6 +342,7 @@ ipcMain.handle('aiflow-analyze-cancel', () => {
 });
 
 ipcMain.handle('aiflow-chat', (_event, { systemContext, messages }) => {
+  analytics.trackEvent('aiflow_chat_sent', { turn: messages.length });
   const { spawn } = require('child_process');
   // Build full prompt: context + conversation history
   const history = messages.slice(0, -1).map(m =>
@@ -361,6 +377,7 @@ ipcMain.handle('capture-export', async (_event, { data, defaultName }) => {
   });
   if (canceled || !filePath) return { canceled: true };
   fs.writeFileSync(filePath, data, 'utf8');
+  analytics.trackEvent('capture_exported', { type: 'single' });
   return { saved: true, filePath };
 });
 
@@ -374,7 +391,17 @@ ipcMain.handle('capture-export-sessions', async (_event, sessions) => {
   for (const { filename, data } of sessions) {
     fs.writeFileSync(path.join(dir, filename), data, 'utf8');
   }
+  analytics.trackEvent('capture_exported', { type: 'bulk', count: sessions.length });
   return { saved: true, dir, count: sessions.length };
 });
 
-app.on('before-quit', () => { if (proxyServer) proxyServer.close(); });
+app.on('before-quit', () => {
+  if (proxyServer) proxyServer.close();
+  if (_appOpenTime) {
+    analytics.trackEvent('session_ended', { duration_sec: Math.round((Date.now() - _appOpenTime) / 1000) });
+  }
+});
+
+ipcMain.on('analytics-track', (_event, name, params = {}) => {
+  analytics.trackEvent(name, params);
+});
