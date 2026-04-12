@@ -316,7 +316,6 @@ ipcMain.handle('aiflow-analyze', (_event, { prompt }) => {
       analytics.trackEvent('aiflow_analyze_done', {
         success: result.success ? 1 : 0,
         duration_sec: Math.round((Date.now() - _analyzeStart) / 1000),
-        error: result.error || '',
       });
       resolve(result);
     };
