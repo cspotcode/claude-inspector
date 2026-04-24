@@ -1,140 +1,150 @@
 # Claude Inspector — Development Guide
 
-## 프로젝트 개요
+## Project Overview
 
-Claude Code의 5가지 프롬프트 메커니즘(CLAUDE.md, Output Style, Slash Command, Skill, Sub-Agent)이
-실제로 Anthropic API에 어떤 JSON 페이로드를 만드는지 시각화하고 테스트하는 **Electron 데스크탑 앱**.
+An **Electron desktop app** that visualizes and tests the JSON payloads that Claude Code's 5 prompt
+mechanisms (CLAUDE.md, Output Style, Slash Command, Skill, Sub-Agent) actually send to the Anthropic API.
 
-**타겟 유저**: Claude Code 내부 동작 원리를 파악하고 싶은 개발자
+**Target users**: Developers who want to understand Claude Code's internal behavior
 
-## 아키텍처
+## Architecture
 
-```
-main.js         Electron main process — BrowserWindow 생성, IPC 핸들러
-preload.js      contextBridge — window.electronAPI 노출
+```text
+main.js         Electron main process — BrowserWindow creation, IPC handlers
+preload.js      contextBridge — exposes window.electronAPI
 public/
-  index.html    단일 파일 프론트엔드 (CSS + Vanilla JS 인라인)
-package.json    Electron + electron-builder 설정
+  index.html    Single-file frontend (inline CSS + Vanilla JS)
+package.json    Electron + electron-builder config
 ```
 
-### IPC 채널
+### IPC Channels
 
-| 채널 | 방향 | 역할 |
-|------|------|------|
-| `send-to-claude` | renderer → main | Anthropic API 호출 |
+| Channel          | Direction        | Role               |
+|------------------|------------------|--------------------|
+| `send-to-claude` | renderer → main  | Anthropic API call |
 
-## 기술 스택
+## Tech Stack
 
-- **Electron 33** — 데스크탑 앱
-- **@anthropic-ai/sdk** — API 호출 (main process에서만)
-- **Vanilla JS** — 프레임워크 없음, 빌드 스텝 없음
-- **highlight.js (CDN)** — JSON 신택스 하이라이팅
-- **marked.js (CDN)** — Markdown 렌더링
+- **Electron 33** — desktop app
+- **@anthropic-ai/sdk** — API calls (main process only)
+- **Vanilla JS** — no framework, no build step
+- **highlight.js (CDN)** — JSON syntax highlighting
+- **marked.js (CDN)** — Markdown rendering
 
-## 현재 기능
+## Current Features
 
-- 5가지 메커니즘 탭 (각 실제 API 페이로드 실시간 미리보기)
-- CLAUDE.md / Output Style / Slash Command: 직접 API 전송 가능
-- Skill: Simulate Effect (단순화 버전으로 실전 테스트)
-- Sub-Agent: Run Sub-Agent (delegation prompt 단독 실행)
-- API Key localStorage 저장
-- 플로우 다이어그램 (Skill, Sub-Agent 동작 시각화)
+- 5 mechanism tabs (each with live API payload preview)
+- CLAUDE.md / Output Style / Slash Command: send directly to API
+- Skill: Simulate Effect (simplified version for real-world testing)
+- Sub-Agent: Run Sub-Agent (delegation prompt standalone execution)
+- API Key saved to localStorage
+- Flow diagrams (Skill, Sub-Agent behavior visualization)
 
-## 개발 규칙
+## Development Rules
 
-- **Electron Only** — server.ts 삭제, web fallback 코드 제거
-- `public/index.html` 단일 파일 유지 (외부 .js/.css 파일 생성 금지)
-- IPC 추가 시: main.js `ipcMain.handle` + preload.js `contextBridge` 동시 수정
-- UI 스타일: VS Code Dark+ 테마 유지 (CSS 변수 --bg, --surface, --blue 등)
-- 커밋: 한글, HEREDOC 필수 (`~/.claude/rules/git-rules.md`)
+- **Electron Only** — server.ts deleted, no web fallback code
+- Keep `public/index.html` as a single file (no external .js/.css files)
+- When adding IPC: update `ipcMain.handle` in main.js AND `contextBridge` in preload.js together
+- UI style: maintain VS Code Dark+ theme (CSS variables --bg, --surface, --blue, etc.)
+- Commits: use HEREDOC (`~/.claude/rules/git-rules.md`)
 
-## 빌드/실행
+## Build / Run
 
 ```bash
-npm start          # 개발 실행
-npm run dev        # 개발 + 로깅
-npm run dist       # 배포 빌드 → release/
+npm start          # dev run
+npm run dev        # dev run + logging
+npm run dist       # production build → release/
 ```
 
-## 현재 완료된 기능 (2026-02-28)
+## Completed Features (2026-02-28)
 
-### ✅ P0 완료
-- server.ts 제거, web fallback 완전 삭제
-- KB · 토큰 수 실시간 표시 (헤더 size-pill)
-- 📂 파일 불러오기 (Electron dialog IPC)
-- Markdown 응답 렌더링 (marked.js CDN + MD 토글 버튼)
+### ✅ P0 Done
 
-### ✅ P1 완료
-- Export 탭 — cURL / Python / TypeScript 스니펫 생성
-- 요청 히스토리 패널 (세션 내 최근 10개, 클릭 복원)
-- KB · ~토큰 실시간 표시
+- Removed server.ts, eliminated all web fallback code
+- Live KB + token count display (header size-pill)
+- File open dialog (Electron dialog IPC)
+- Markdown response rendering (marked.js CDN + MD toggle button)
 
-### ✅ UX 버그 수정
-- macOS 창 드래그 (`-webkit-app-region: drag`)
-- 트래픽 라이트 버튼 겹침 (`body.darwin .header { padding-left: 76px }`)
+### ✅ P1 Done
+
+- Export tab — cURL / Python / TypeScript snippet generation
+- Request history panel (last 10 in session, click to restore)
+- Live KB + ~token display
+
+### ✅ UX Bug Fixes
+
+- macOS window drag (`-webkit-app-region: drag`)
+- Traffic light button overlap (`body.darwin .header { padding-left: 76px }`)
 
 ---
 
-## 다음 작업: 프록시 모드 (진짜 인스펙터)
+## Next: Proxy Mode (the real inspector)
 
-### 개요
-현재 앱은 "시뮬레이터" — 페이로드를 직접 구성해서 전송.
-**목표**: Claude Code CLI의 실제 API 트래픽을 가로채서 실시간 시각화.
+### Overview
 
-### 원리
-```
-Claude Code CLI → localhost:9090 (프록시) → Anthropic API
+The current app is a "simulator" — it constructs and sends payloads directly.
+**Goal**: Intercept and visualize actual API traffic from the Claude Code CLI in real time.
+
+### How it works
+
+```text
+Claude Code CLI → localhost:9090 (proxy) → Anthropic API
                         ↓
-                  Inspector UI에 실시간 표시
+                  Displayed live in Inspector UI
 ```
 
-Claude Code는 `ANTHROPIC_BASE_URL` 환경변수를 지원:
+Claude Code supports the `ANTHROPIC_BASE_URL` environment variable:
+
 ```bash
 ANTHROPIC_BASE_URL=http://localhost:9090 claude
 ```
 
-### 구현 계획
+### Implementation plan
 
-#### main.js 추가
+#### Additions to main.js
+
 ```js
-// HTTP 프록시 서버 (node:http)
+// HTTP proxy server (node:http)
 const proxyServer = http.createServer(async (req, res) => {
-  // 1. 요청 바디 수집
-  // 2. IPC로 renderer에 전송 (실시간 표시)
-  // 3. 실제 Anthropic API로 포워딩
-  // 4. 응답 캡처 후 IPC로 전송
-  // 5. 클라이언트에 응답 반환
+  // 1. Collect request body
+  // 2. Send to renderer via IPC (live display)
+  // 3. Forward to real Anthropic API
+  // 4. Capture response and send via IPC
+  // 5. Return response to client
 });
 proxyServer.listen(9090);
 ```
 
-#### IPC 채널 추가
-| 채널 | 방향 | 역할 |
-|------|------|------|
-| `proxy-request` | main → renderer | 캡처된 요청 페이로드 |
-| `proxy-response` | main → renderer | 캡처된 응답 |
-| `proxy-start` | renderer → main | 프록시 서버 시작 |
-| `proxy-stop` | renderer → main | 프록시 서버 중지 |
+#### New IPC channels
 
-#### UI 추가
-- **Proxy 탭** 추가 (또는 별도 모드)
-- 프록시 ON/OFF 토글 + 포트 설정
-- 캡처된 요청 목록 (실시간 스트림)
-- 클릭하면 페이로드 상세 보기
-- `ANTHROPIC_BASE_URL=http://localhost:9090 claude` 명령 복사 버튼
+| Channel          | Direction        | Role                      |
+|------------------|------------------|---------------------------|
+| `proxy-request`  | main → renderer  | captured request payload  |
+| `proxy-response` | main → renderer  | captured response         |
+| `proxy-start`    | renderer → main  | start proxy server        |
+| `proxy-stop`     | renderer → main  | stop proxy server         |
 
-### 기술 고려사항
-- `node:http` 모듈로 프록시 서버 구현 (외부 의존성 불필요)
-- HTTPS: Anthropic API는 HTTPS지만 프록시는 HTTP로 받고 내부에서 SDK로 포워딩
-- 스트리밍 응답: Anthropic SDK의 streaming 지원 활용
-- 포트 충돌: 9090 사용 중이면 자동으로 다음 포트 탐색
+#### UI additions
+
+- Add **Proxy tab** (or separate mode)
+- Proxy ON/OFF toggle + port setting
+- Captured request list (live stream)
+- Click to view payload detail
+- Copy button for `ANTHROPIC_BASE_URL=http://localhost:9090 claude`
+
+### Technical considerations
+
+- Implement proxy server with `node:http` (no external dependencies needed)
+- HTTPS: Anthropic API uses HTTPS, but proxy accepts HTTP and forwards internally via SDK
+- Streaming responses: use Anthropic SDK's streaming support
+- Port conflicts: if 9090 is in use, auto-try next available port
 
 ---
 
-## 개발 규칙
+## Rules (summary)
 
-- **Electron Only** — web fallback 코드 금지
-- `public/index.html` 단일 파일 유지 (외부 .js/.css 파일 생성 금지)
-- IPC 추가 시: main.js `ipcMain.handle` + preload.js `contextBridge` 동시 수정
-- UI 스타일: VS Code Dark+ 테마 유지 (CSS 변수 --bg, --surface, --blue 등)
-- 커밋: 한글, HEREDOC 필수 (`~/.claude/rules/git-rules.md`)
+- **Electron Only** — no web fallback code
+- Keep `public/index.html` as a single file (no external .js/.css files)
+- When adding IPC: update `ipcMain.handle` in main.js AND `contextBridge` in preload.js together
+- UI style: maintain VS Code Dark+ theme (CSS variables --bg, --surface, --blue, etc.)
+- Commits: use HEREDOC (`~/.claude/rules/git-rules.md`)

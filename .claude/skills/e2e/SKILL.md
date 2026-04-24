@@ -4,66 +4,66 @@ description: Run e2e and unit tests for Claude Inspector. Use after code changes
 user-invocable: true
 ---
 
-## Claude Inspector 테스트 실행
+## Running Claude Inspector Tests
 
-### Unit tests (파싱 로직)
+### Unit tests (parsing logic)
 ```bash
 npm run test:unit
 ```
-- `parseClaudeMdSections` — CLAUDE.md system-reminder 섹션 파싱
-- `parseUserText` — 사용자 메시지 내 injected block 감지
-- `detectMechanisms` — 5가지 메커니즘 감지 로직
+- `parseClaudeMdSections` — parses CLAUDE.md system-reminder sections
+- `parseUserText` — detects injected blocks in user messages
+- `detectMechanisms` — detection logic for 5 mechanisms
 
 ### E2E tests (Electron UI)
 ```bash
 npm run test:e2e
-# headed 모드 (브라우저 보이게)
+# headed mode (show browser)
 npm run test:e2e -- --headed
-# 특정 테스트만
-npm run test:e2e -- --grep "탭 클릭"
-# 디버그 모드 (step-by-step)
+# specific test only
+npm run test:e2e -- --grep "tab click"
+# debug mode (step-by-step)
 npm run test:e2e -- --debug
 ```
-- 앱이 실행 중이면 먼저 종료: `pkill -x "Electron"`
+- If the app is running, kill it first: `pkill -x "Electron"`
 
-### 전체 실행
+### Run all tests
 ```bash
 npm test
 ```
 
-## 현재 상태
-- 브랜치: !`git branch --show-current`
-- 변경 파일: !`git diff --name-only HEAD 2>/dev/null | head -10`
+## Current state
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff --name-only HEAD 2>/dev/null | head -10`
 
 ---
 
-## Playwright 핵심 패턴
+## Playwright Key Patterns
 
-### 셀렉터 우선순위
+### Selector priority
 ```typescript
-// ✅ 권장: role, label, data-testid 순
-page.getByRole('button', { name: '프록시 시작' })
+// ✅ Preferred: role, label, data-testid order
+page.getByRole('button', { name: 'Start Proxy' })
 page.getByLabel('API Key')
 page.locator('[data-testid="proxy-toggle"]')
-page.locator('[data-m="claude-md"]')  // 이 프로젝트 convention
+page.locator('[data-m="claude-md"]')  // this project's convention
 
-// ❌ 금지: CSS 클래스, nth-child
+// ❌ Forbidden: CSS classes, nth-child
 page.locator('.btn.active')
 page.locator('div > span:nth-child(2)')
 ```
 
-### 대기 전략
+### Wait strategy
 ```typescript
-// ❌ 금지: 고정 타임아웃
+// ❌ Forbidden: fixed timeouts
 await page.waitForTimeout(3000);
 
-// ✅ 권장: 상태/요소 기반
+// ✅ Preferred: state/element-based
 await page.waitForLoadState('domcontentloaded');
 await expect(page.locator('[data-m="claude-md"]')).toHaveClass(/active/);
 await expect(page.getByText('Copied!')).toBeVisible();
 ```
 
-### Page Object Model (복잡한 테스트에서 활용)
+### Page Object Model (for complex tests)
 ```typescript
 // tests/e2e/pages/MechanismPage.ts
 export class MechanismPage {
@@ -80,9 +80,9 @@ export class MechanismPage {
 }
 ```
 
-### 네트워크/IPC 모킹 (프록시 테스트)
+### Network/IPC mocking (proxy tests)
 ```typescript
-// Anthropic API 응답 모킹
+// Mocking Anthropic API responses
 await page.route('**/api.anthropic.com/**', route => {
   route.fulfill({
     status: 200,
@@ -92,9 +92,9 @@ await page.route('**/api.anthropic.com/**', route => {
 });
 ```
 
-### 실패 시 트레이스 수집
+### Collecting traces on failure
 ```typescript
-// playwright.config.ts에 추가
+// Add to playwright.config.ts
 use: {
   trace: 'on-first-retry',
   screenshot: 'only-on-failure',
@@ -104,25 +104,25 @@ use: {
 
 ---
 
-## 테스트 실패 대처
+## Handling Test Failures
 
-| 원인 | 해결 |
-|------|------|
-| 앱 실행 중 충돌 | `pkill -x "Electron"` |
-| 포트 충돌 | `lsof -ti:9090 \| xargs kill` |
-| 셀렉터 못 찾음 | `--headed` 모드로 실행해 직접 확인 |
-| 타임아웃 | `waitForTimeout` → `waitForLoadState` 변경 |
-| Unit test 불일치 | `public/index.html` 함수와 `tests/unit/parse.test.mjs` 기대값 동기화 확인 |
+| Cause | Fix |
+|-------|-----|
+| App already running | `pkill -x "Electron"` |
+| Port conflict | `lsof -ti:9090 \| xargs kill` |
+| Selector not found | Run with `--headed` to inspect visually |
+| Timeout | Change `waitForTimeout` → `waitForLoadState` |
+| Unit test mismatch | Sync `public/index.html` functions with `tests/unit/parse.test.mjs` expectations |
 
 ---
 
-## 테스트 피라미드
+## Test Pyramid
 
 ```
-      /E2E\         ← 앱 실행·탭 전환·프록시 제어
+      /E2E\         ← app launch, tab switching, proxy control
      /──────\
     /Unit    \      ← parseClaudeMdSections, detectMechanisms
    /──────────\
 ```
 
-E2E는 핵심 워크플로우만. 파싱 로직 엣지케이스는 unit test로.
+E2E covers core workflows only. Parsing logic edge cases go in unit tests.
